@@ -1,0 +1,69 @@
+id: "example.linear_equation.001"
+version: 1
+status: draft
+
+metadata:
+  subject: Mathematics
+  topic: Algebra
+  subtopic: Linear Equations
+  difficulty: Easy
+  tags: ["equations", "algebra", "solving"]
+  marks: 1
+  curriculum:
+    - region: NSW
+      outcome: MA5.2-8NA
+
+parameters:
+  a:
+    type: int
+    min: 2
+    max: 4
+  b:
+    type: int
+    min: 2
+    max: 4
+  x:
+    type: expression
+    value: "{{ (b / a) | round(2) }}"
+
+question:
+  text: |
+    Solve the equation really quickly: 
+      {{ a }}x = {{ b * a}}
+
+answers:
+  - int: "{{ b - 1}}"
+    correct: false
+  - int: "{{ b }}"
+    correct: true
+  - int: "{{ b + 1}}"
+    correct: false
+  - int: "{{ b + 2}}"
+    correct: false
+
+
+solution:
+  text: |
+    
+    To solve the equation: 
+      {{ a }}x = {{ a * b }} 
+     
+    divide both sides by {{ a }}: 
+      x = $\frac{{ a * b }}{{ a }} = {{ b }}$
+
+
+
+diagram:
+  type: none
+  elements: []
+
+validation:
+  required_fields:
+    - question.text
+    - answer.text
+    - solution.text
+  rules:
+    - check: "a != 0"
+      message: "Coefficient 'a' must not be zero."
+    - check: "b > 0"
+      message: "b must be positive."

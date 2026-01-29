@@ -1,0 +1,198 @@
+from django.db import models
+from django.contrib.auth.models import AbstractUser
+from django.conf import settings
+
+from django.db.models import Count
+from django_cte import With
+from django.db.models.expressions import RawSQL
+
+
+class User(AbstractUser):
+    ROLE_CHOICES = [
+        ("student", "Student"),
+        ("tutor", "Tutor"),
+        ("parent", "Parent"),
+        ("admin", "Admin"),
+    ]
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+
+class ParentChild(models.Model):
+    parent = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="children")
+    child = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="parents")
+
+    class Meta:
+        unique_together = ("parent", "child")
+
+class TutorStudent(models.Model):
+    tutor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="students")
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="tutors")
+
+    class Meta:
+        unique_together = ("tutor", "student")
+
+class TutorBranding(models.Model):
+    tutor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    logo = models.ImageField(upload_to='branding/')
+    color_scheme = models.CharField(max_length=20)
+    welcome_message = models.TextField()
+
+# To manage QR codes
+class TutorInviteToken(models.Model):
+    tutor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    token = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class Skill(models.Model):
+    parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, related_name="children")
+    code = models.CharField(max_length=100)
+    description = models.TextField()
+    grade_level = models.IntegerField()
+    order_index = models.IntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.code}: {self.description[:40]}"
+
+    def direct_templates(self):
+        return Template.objects.filter(skill=self)
+
+    def template_count(self):
+        # 1. Collect all descendant skill IDs (including self)
+        def collect_ids(skill):
+            ids = [skill.id]
+            for child in skill.children.all():
+                ids.extend(collect_ids(child))
+            return ids
+
+        skill_ids = collect_ids(self)
+
+        # 2. Count templates for all skills in the subtree
+        total = Template.objects.filter(skill_id__in=skill_ids).count()
+
+        # print("TEMPLATE COUNT:", self.id, total)
+        return total
+
+
+class StudentSkillMatrix(models.Model):
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    skill = models.ForeignKey(Skill, on_delete=models.CASCADE)
+
+    mastery = models.FloatField(default=0.0)  # 0–1 or 0–100
+    evidence_count = models.IntegerField(default=0)
+    recent_correct_rate = models.FloatField(default=0.0)
+    confidence = models.FloatField(default=0.0)
+
+    last_updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("student", "skill")
+
+class TutorAvailability(models.Model):
+    tutor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    weekday = models.IntegerField()
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+
+class Appointment(models.Model):
+    tutor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="tutor")
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="student")
+    start_datetime = models.DateTimeField()
+    end_datetime = models.DateTimeField()
+    status = models.CharField(max_length=20)
+
+class Notification(models.Model):
+    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    message = models.TextField()
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+class Template(models.Model):
+    # --- Core content ---
+    name = models.CharField(max_length=200, blank=True, null=True)
+    description = models.TextField(blank=True)
+
+    # Raw YAML/JSON template content
+    content = models.TextField(blank=True, null=True)
+
+    # --- Metadata ---
+    subject = models.CharField(max_length=200, blank=True, null=True)
+    topic = models.CharField(max_length=100, blank=True)
+    subtopic = models.CharField(max_length=100, blank=True)
+    difficulty = models.CharField(max_length=50, blank=True)
+    tags = models.JSONField(default=list, blank=True)
+
+    curriculum = models.JSONField(default=list, blank=True)
+    skill = models.ForeignKey(Skill, null=True, on_delete=models.SET_NULL)
+
+    # --- Workflow state ---
+    STATUS_CHOICES = [
+        ("draft", "Draft"),
+        ("validated", "Validated"),
+        ("published", "Published"),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="draft")
+
+    # --- Versioning ---
+    version = models.IntegerField(default=1)
+
+    # --- Ownership & audit ---
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="templates_created")
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="templates_updated")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # --- Flags for quality control ---
+    has_preview = models.BooleanField(default=False)  # set true once preview successfully generated
+    last_validated_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.name} (v{self.version})"
+
+class TemplateDiagram(models.Model):
+    template = models.ForeignKey(Template, on_delete=models.CASCADE)
+    svg_spec = models.TextField()
+
+class TemplateSkill(models.Model):
+    template = models.ForeignKey(Template, on_delete=models.CASCADE)
+    skill = models.ForeignKey(Skill, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ("template", "skill")
+
+class Question(models.Model):
+    template = models.ForeignKey(Template, on_delete=models.CASCADE)
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="question_instances")
+    params = models.JSONField()
+    question_text = models.TextField()
+    correct_answer = models.TextField()
+    help_requested = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Instance {self.id} of {self.template.name}"
+
+class Task(models.Model):
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    assigned_at = models.DateTimeField(auto_now_add=True)
+
+class TaskItem(models.Model):
+    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    question = models.ForeignKey(Question, null=True, on_delete=models.CASCADE)
+
+class QuestionAttempt(models.Model):
+    question = models.ForeignKey(Question, null=True, on_delete=models.CASCADE)
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.CASCADE)
+    template = models.ForeignKey(Template, null=True, on_delete=models.CASCADE)
+
+    skills = models.JSONField(null=True)
+    selected_answer = models.TextField(null=True)
+    correct = models.BooleanField(default=True)
+    time_taken_ms = models.IntegerField(null=True, blank=True)
+
+    attempted_at = models.DateTimeField(auto_now_add=True, null=True)
+
+
+
+class SyllabusMapping(models.Model):
+    template = models.ForeignKey(Template, on_delete=models.CASCADE)
+    region = models.CharField(max_length=50)
+    outcome_code = models.CharField(max_length=50)
+

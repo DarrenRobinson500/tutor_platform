@@ -1,0 +1,202 @@
+import { useState } from "react";
+import { Latex } from "./Latex";
+import "katex/dist/katex.min.css";
+
+
+interface PreviewPanelProps {
+  preview: any;
+  templateContent: string;
+  onNext: (newPreview: any) => void;
+}
+
+export function PreviewPanel({
+  preview,
+  templateContent,
+  onNext,
+}: PreviewPanelProps) {
+  const [selected, setSelected] = useState<number | null>(null);
+  const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+  const [flagged, setFlagged] = useState(false);
+
+  // -----------------------------
+  // Handlers
+  // -----------------------------
+  function handleAnswerClick(index: number, answer: any) {
+    setSelected(index);
+
+    const correct = Boolean(answer.correct);
+    setIsCorrect(correct);
+
+    if (correct) {
+      setTimeout(() => {
+        loadNextQuestion();
+      }, 1000);
+    }
+  }
+
+  async function loadNextQuestion() {
+    const res = await fetch("/api/templates/preview/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: templateContent }),
+    });
+
+    const data = await res.json();
+
+    setSelected(null);
+    setIsCorrect(null);
+
+    onNext(data);
+  }
+
+    async function handleIDontGetIt() {
+      setFlagged(true);
+
+      // Keep the current question visible for 1.5 seconds
+      setTimeout(() => {
+        setFlagged(false);
+        loadNextQuestion();
+      }, 1500);
+
+      console.log("Student flagged this question:", preview);
+    }
+
+  // -----------------------------
+  // Early returns
+  // -----------------------------
+if (preview.errors?.length) {
+      return (
+        <div style={{ padding: 12 }}>
+          <div style={{ color: "red", marginBottom: 12 }}>
+            Backend reported errors:
+            <ul>
+              {preview.errors.map((e: string, i: number) => (
+                <li key={i}>{e}</li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Still show whatever we *can* show */}
+          {preview.question && <Latex>{preview.question}</Latex>}
+          {preview.diagram_svg && (
+            <div dangerouslySetInnerHTML={{ __html: preview.diagram_svg }} />
+          )}
+        </div>
+      );
+
+  }
+
+  // -----------------------------
+  // Extract preview data
+  // -----------------------------
+  const data = preview;
+  const rawQuestion = data.question;
+  const question =
+    typeof rawQuestion === "string" || typeof rawQuestion === "number"
+      ? rawQuestion
+      : typeof rawQuestion?.text === "string"
+      ? rawQuestion.text
+      : JSON.stringify(rawQuestion);
+  const solution = data.solution;
+  const answers = Array.isArray(data.answers) ? data.answers : [];
+  const diagramSvg: string | undefined = data.diagram_svg;
+
+
+  // -----------------------------
+  // Render
+  // -----------------------------
+  return (
+    <div style={{ padding: 12, fontSize: 18 }}>
+      {/* Question */}
+      <div style={{ marginBottom: 12, fontWeight: "bold" }}><Latex>{question}</Latex></div>
+
+      {/* Diagram */}
+        {diagramSvg && (
+          <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
+            <div
+              dangerouslySetInnerHTML={{ __html: diagramSvg }}
+            />
+          </div>
+        )}
+
+      {/* Answers */}
+      {answers.length > 0 && (
+        <div className="d-flex flex-row flex-wrap gap-2">
+          {answers.map((a: any, i: number) => {
+            const text =
+              typeof a === "string" || typeof a === "number"
+                ? a
+                : typeof a?.text === "string" || typeof a?.text === "number"
+                ? a.text
+                : JSON.stringify(a);
+
+            const isSelected = selected === i;
+
+            return (
+              <button
+                key={i}
+                className={`btn btn-sm w-auto ${
+                  isSelected
+                    ? isCorrect
+                      ? "btn-success"
+                      : "btn-danger"
+                    : "btn-outline-primary"
+                }`}
+                style={{ minWidth: "90px" }}
+                onClick={() => handleAnswerClick(i, a)}
+              >
+                <Latex>{text}</Latex>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Correct / Incorrect message */}
+      {selected !== null && (
+        <div className="mt-3" style={{ fontWeight: "bold", fontSize: 18 }}>
+          {isCorrect ? "Correct!" : "Incorrect — try again"}
+        </div>
+      )}
+
+      {/* Incorrect: show solution + buttons */}
+      {selected !== null && !isCorrect && solution && (
+        <>
+          <div
+            className="mt-2 p-2"
+            style={{
+              background: "#f8f9fa",
+              borderLeft: "4px solid #dc3545",
+              fontSize: 15,
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            <Latex>{solution}</Latex>
+
+          </div>
+
+          <button
+            className="btn btn-sm btn-primary mt-2"
+            onClick={loadNextQuestion}
+          >
+            Next
+          </button>
+
+          <button
+            className="btn btn-sm btn-warning mt-2 ms-2"
+            onClick={handleIDontGetIt}
+          >
+            I don’t get it
+          </button>
+        </>
+      )}
+
+      {/* Flagged message */}
+      {flagged && (
+        <div className="alert alert-info mt-2 p-2">
+          Added to tutor review list
+        </div>
+      )}
+    </div>
+  );
+}

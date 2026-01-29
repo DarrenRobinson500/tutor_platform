@@ -1,0 +1,78 @@
+id: "example.fractions.multiply.001"
+version: 1
+status: draft
+
+metadata:
+  subject: Mathematics
+  topic: Fractions
+  subtopic: Multiplying Fractions
+  difficulty: Easy
+  tags: ["fractions", "multiplication", "numeracy"]
+  marks: 1
+  curriculum:
+    - region: NSW
+      outcome: MA3-7NA
+
+parameters:
+  a:
+    type: int
+    min: 1
+    max: 5
+  b:
+    type: int
+    min: 2
+    max: 8
+  c:
+    type: int
+    min: 1
+    max: 4
+  d:
+    type: int
+    min: 2
+    max: 6
+  result_num:
+    type: expression
+    value: "{{ a * c }}"
+  result_den:
+    type: expression
+    value: "{{ b * d }}"
+
+question:
+  text: |
+    Multiply the fractions:
+    
+      \(\frac{{ a }}{{ b }} \times \frac{{ c }}{{ d }}\)
+
+answers:
+  - fraction: "{{ result_num }}/{{ result_den }}"
+    correct: true
+  - fraction: "{{ result_num + 1 }}/{{ result_den }}"
+    correct: false
+  - fraction: "{{ result_num }}/{{ result_den + 1 }}"
+    correct: false
+  - fraction: "{{ result_num + 2 }}/{{ result_den }}"
+    correct: false
+
+solution:
+  text: |
+    To multiply fractions, multiply the numerators and multiply the denominators:
+    
+    \[
+      \frac{{ a }}{{ b }} \times \frac{{ c }}{{ d }}
+      = \frac{{ a \times c }}{{ b \times d }}
+      = \frac{{ result_num }}{{ result_den }}
+    \]
+
+diagram:
+  type: none
+  elements: []
+
+validation:
+  required_fields:
+    - question.text
+    - solution.text
+  rules:
+    - check: "b != 0"
+      message: "Denominator b must not be zero."
+    - check: "d != 0"
+      message: "Denominator d must not be zero."

@@ -1,0 +1,64 @@
+from rest_framework import viewsets
+from .models import Template
+from .validation import *
+from .rendering import *
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework import status
+import yaml
+
+from .serializers import TemplateSerializer
+
+class TemplateViewSet(viewsets.ModelViewSet):
+    queryset = Template.objects.all()
+    serializer_class = TemplateSerializer
+
+    @action(detail=False, methods=["post"])
+    def autosave(self, request):
+        content = request.data.get("content", "")
+        template_id = request.data.get("templateId") or request.data.get("id")
+
+
+        # Debug print so you can see autosave firing
+        # print("AUTOSAVE RECEIVED", template_id, request.data)
+
+        # If no template_id, do nothing and return success
+        if not template_id:
+            return Response({"ok": True})
+
+        # If template_id exists, update the template
+        try:
+            template = Template.objects.get(pk=template_id)
+            template.content = content
+            template.save()
+            print(f"AUTOSAVED TEMPLATE {template_id}")
+            return Response({"ok": True})
+        except Template.DoesNotExist:
+            # Silently ignore missing templates too
+            return Response({"ok": True})
+
+    @action(detail=False, methods=["post"])
+    def preview(self, request):
+        content = request.data.get("content", "")
+
+        # Step 1: Try YAML
+        try:
+            parsed = yaml.safe_load(content)
+        except Exception as e:
+            return Response(
+                {"ok": False, "error": f"YAML error: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Step 2: Deep validation (your rules)
+        errors = validate_template(parsed)
+        if errors:
+            return Response(
+                {"ok": False, "error": errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Step 3: Render preview (your logic)
+        preview = render_template_preview(parsed)
+
+        return Response({"ok": True, "preview": preview})
