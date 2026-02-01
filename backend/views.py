@@ -301,11 +301,13 @@ class TutorViewSet(viewsets.ReadOnlyModelViewSet):
             password=make_password(password),
         )
 
+        TutorProfile.objects.create(tutor=new_tutor)
+
         return Response({
             "id": new_tutor.id,
             "name": new_tutor.first_name,
             "email": new_tutor.email,
-            "password": password,  # show once so admin can give it to tutor
+            "password": password
         })
 
     @action(detail=True, methods=["get"])
@@ -337,7 +339,8 @@ class TutorViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["post"])
     def add_availability(self, request, pk=None):
         tutor = self.get_object()
-        weekday = request.data.get("weekday")
+        js_weekday = int(request.data["weekday"])
+        weekday = (js_weekday - 1) % 7
         start = request.data.get("start_time")
         end = request.data.get("end_time")
 
@@ -376,92 +379,88 @@ class TutorViewSet(viewsets.ReadOnlyModelViewSet):
     #
     @action(detail=True, methods=["get"])
     def weekly_slots(self, request, pk=None):
-        print("Weekly Slots")
-        print("Self", self)
-        print("Request:", request)
+        user = self.get_object()
+        tutor = user.get_tutor_profile()
 
-        try:
-            tutor_profile = self.get_object()
-            print("Weekly Slots - Tutor profile:", tutor_profile)
-        except TutorProfile.DoesNotExist:
-            return Response({"error": "Tutor not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        # Validate week_start parameter
         week_start_str = request.query_params.get("week_start")
         if not week_start_str:
-            print("Week start issue")
             return Response({"error": "week_start is required (YYYY-MM-DD)"}, status=400)
 
         try:
-            week_start = datetime.strptime(week_start_str, "%Y-%m-%d").date()
+            raw_date = datetime.strptime(week_start_str, "%Y-%m-%d").date()
         except ValueError:
-            print("Week start issue B")
-
             return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=400)
 
-        # Run the generator
-        print("Starting to generate weekly slots")
-        week_data = generate_weekly_slots(tutor_profile, week_start)
-        print("Weekly data result:", week_data)
+        # FIX: ensure week starts on Sunday
+        week_start = get_sunday_start(raw_date)
+
+        week_data = tutor.generate_weekly_slots(week_start)
 
         return Response({"week": week_data}, status=200)
 
     @action(detail=True, methods=["get"])
     def session_settings(self, request, pk=None):
-        tutor = self.get_object()
+        user = self.get_object()
+        print("Session settings user", user)
+        tutor = TutorProfile.objects.get(tutor=user)
+        print(tutor)
         serializer = TutorSerializer(tutor)
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"], url_path="check_and_book")
     def check_and_book(self, request, pk=None):
         print("Check and book")
-        tutor = self.get_object()
+        user = self.get_object()
+        tutor = user.get_tutor_profile()
+
         student_id = request.data["student_id"]
-        date = request.data["date"]
-        time = request.data["time"]
+        date = request.data["date"]  # "2026-02-01"
+        time = request.data["time"]  # "09:00"
         repeat = request.data.get("repeat_weekly", False)
 
-        # Convert to datetime
-        start_dt = datetime.fromisoformat(f"{date}T{time}")
-        session_minutes = tutor.default_session_minutes
-        end_dt = start_dt + timedelta(minutes=session_minutes)
+        print("Check and book (user, tutor, studentid, date, time, repeat)",
+              user, tutor, student_id, date, time, repeat)
 
-        # Helper to check conflicts
-        def is_available(start, end):
-            return not Appointment.objects.filter(
-                tutor=tutor,
-                start__lt=end,
-                end__gt=start
-            ).exists()
+        # Parse date + time
+        date_dt = datetime.fromisoformat(date).date()
+        start_t = datetime.strptime(time, "%H:%M").time()
+
+        # Compute end time
+        session_minutes = tutor.default_session_minutes
+        end_t = (datetime.combine(date_dt, start_t) + timedelta(minutes=session_minutes)).time()
+
+        print("Check and book (date_dt, start_t, end_t)", date_dt, start_t, end_t)
 
         # Weekly repetition
         weeks = 12 if repeat else 1
         created = 0
 
         for i in range(weeks):
-            s = start_dt + timedelta(weeks=i)
-            e = end_dt + timedelta(weeks=i)
+            this_date = date_dt + timedelta(weeks=i)
 
-            if is_available(s, e):
-              Appointment.objects.create(
-                  tutor=tutor,
-                  student_id=student_id,
-                  start=s,
-                  end=e
-              )
-              created += 1
-            else:
-              return Response({
-                  "status": "error",
-                  "message": f"Time unavailable on {s.date()}"
-              })
+            # Build naive datetimes
+            naive_start = datetime.combine(this_date, start_t)
+            naive_end = datetime.combine(this_date, end_t)
+
+            # Localize to Sydney timezone
+            start_dt = make_aware(naive_start)
+            end_dt = make_aware(naive_end)
+
+            # Availability check
+            if tutor.is_available(this_date, start_t, end_t):
+                Appointment.objects.create(
+                    tutor=user,
+                    student_id=student_id,
+                    start_datetime=start_dt,
+                    end_datetime=end_dt,
+                    status="booked"
+                )
+                created += 1
 
         return Response({
             "status": "ok",
             "message": f"Appointment booked ({created} sessions)"
         })
-
-
 
 # -------------- STUDENT ---------------- #
 
@@ -471,16 +470,15 @@ class StudentViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=["get"])
     def home(self, request, pk=None):
-        student = self.get_object()
-
-        # Later: tasks, assigned skills, progress, notifications, etc.
-        tutor = student.tutors.first()
-        print("Student Home:", student, tutor)
+        user = self.get_object()
+        tutor = user.get_tutor()
+        print("Student Home (user, tutor, tutor_id):", user, tutor, tutor.id if tutor else None)
         return Response({
-            "id": student.id,
-            "name": student.get_full_name() or student.username,
-            "email": student.email,
+            "id": user.id,
+            "name": user.get_full_name() or user.username,
+            "email": user.email,
             "tutor_id": tutor.id if tutor else None,
+            "tutor_name": tutor.get_full_name() or tutor.username if tutor else None,
         })
 
     @action(detail=False, methods=["post"])

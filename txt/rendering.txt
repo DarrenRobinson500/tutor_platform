@@ -189,18 +189,21 @@ def render_template_preview(parsed):
         question_text = f"[ERROR extracting question: {e}]"
         collected_errors.append(question_text)
 
-
-    try:
-        solution_text = substituted.get("solution", {}).get("text", "")
-    except Exception as e:
-        solution_text = f"[ERROR extracting solution: {e}]"
+    solution_block = substituted.get("solution", {})
+    if isinstance(solution_block, dict):
+        solution_text = solution_block.get("text", "")
+    else:
+        solution_text = f"[ERROR: solution must be a mapping, got {type(solution_block).__name__}]"
         collected_errors.append(solution_text)
 
-    try:
-        raw_answers = substituted.get("answers", {}).get("text", "")
-    except Exception as e:
-        raw_answers = f"[ERROR extracting answers: {e}]"
-        collected_errors.append(raw_answers)
+    raw_answers = substituted.get("answers")
+
+    if isinstance(raw_answers, dict):
+        raw_answers = raw_answers.get("text", [])
+
+    if not isinstance(raw_answers, list):
+        collected_errors.append(f"Answers must be a list, got: {type(raw_answers).__name__}")
+        raw_answers = []
 
     answers = []
 
@@ -268,6 +271,9 @@ def render_template_preview(parsed):
             diagram_code = f"[ERROR extracting diagram code: {e}]"
             collected_errors.append(diagram_code)
 
+    substituted = build_debug_yaml(parsed, generated_params, substituted)
+    substituted = substituted.replace("\\n", "\n")
+
     try:                    result['question'] = question_text
     except Exception as e:  result['question'] = f"[ERROR: {e}]"
 
@@ -286,7 +292,7 @@ def render_template_preview(parsed):
     try:                    result['diagram_code'] = diagram_code
     except Exception as e:  result['diagram_code'] = f"[ERROR: {e}]"
 
-    try:                    result['substituted_yaml'] = substituted_yaml_text
+    try:                    result['substituted_yaml'] = substituted
     except Exception as e:  result[''] = f"[ERROR: {e}]"
 
     result['errors'] = collected_errors
@@ -299,3 +305,13 @@ def debug_print_params(params: dict):
     for key, value in params.items():
         print(f"  {key.ljust(max_len)} : {value}")
 
+def build_debug_yaml(parsed, generated_params, substituted):
+    debug = {}
+
+    debug["parameters"] = generated_params
+    debug["question"] = substituted.get("question", {}).get("text", "")
+    debug["solution"] = substituted.get("solution", {}).get("text", "")
+    debug["answers"] = substituted.get("answers", [])
+    debug["diagram"] = substituted.get("diagram", {})
+
+    return _yaml.dump(debug, sort_keys=False)

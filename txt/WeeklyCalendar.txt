@@ -1,0 +1,192 @@
+import React from "react";
+import { WeekData } from "../../types/weekly";
+
+interface WeeklyCalendarProps {
+  week: WeekData;
+  mode: "student" | "tutor-availability" | "tutor-schedule" | "readonly";
+  onSelectSlot?: (day: string, blockStart: string, blockEnd: string) => void;
+  onToggleAvailability?: (weekday: number, time: string) => void;
+  onSelectBooking?: (bookingId: number) => void;
+}
+
+function getSegmentColor(type: string) {
+  switch (type) {
+    case "available": return "#FFFFFF";
+    case "blocked": return "#555555";
+    case "booked_other": return "#B3D7FF";
+    case "booked_self": return "#C7A0FF";
+    case "outside": return "#EEEEEE";
+    default: return "#EEEEEE";
+  }
+}
+
+export function WeeklyCalendar({
+  week,
+  mode,
+  onSelectSlot,
+  onToggleAvailability,
+  onSelectBooking
+}: WeeklyCalendarProps) {
+
+  const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+  const hours = Array.from({ length: 24 }, (_, i) =>
+    String(i).padStart(2, "0") + ":00"
+  );
+
+  return (
+    <div className="weekly-calendar">
+
+      {/* HEADER */}
+      <div className="week-header" style={{ display: "flex", flexDirection: "row" }}>
+        <div className="time-header" style={{ flex: "0 0 60px" }}></div>
+        {days.map((d, i) => (
+          <div
+            key={i}
+            className="day-header"
+            style={{ flex: 1, textAlign: "center", fontWeight: "bold" }}
+          >
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* BODY */}
+      <div className="week-body" style={{ display: "flex", flexDirection: "row" }}>
+
+        {/* TIME COLUMN */}
+        <div
+          className="time-column"
+          style={{ flex: "0 0 60px", display: "flex", flexDirection: "column" }}
+        >
+          {hours.map((h, i) => (
+            <div
+              key={i}
+              className="time-label"
+              style={{
+                height: "24px",
+                fontSize: "10px",
+                color: "#444",
+                paddingTop: "2px"
+              }}
+            >
+              {h}
+            </div>
+          ))}
+        </div>
+
+        {/* DAY COLUMNS */}
+        {week.map((day, dayIndex) => {
+
+          // Identify block starts for label placement
+          const availabilityStarts = day.segments
+            .map((seg, i) => {
+              const prev = day.segments[i - 1];
+              const isStart =
+                seg.type === "available" &&
+                (i === 0 || prev.type !== "available");
+              return isStart ? i : null;
+            })
+            .filter(i => i !== null);
+
+          return (
+            <div
+              key={dayIndex}
+              className="day-column"
+              style={{ flex: 1, display: "flex", flexDirection: "column" }}
+            >
+
+              {day.segments.map((seg, segIndex) => {
+                const color = getSegmentColor(seg.type);
+
+                // Default click handler
+                let handleClick = () => {
+                  if (mode === "tutor-availability") {
+                    onToggleAvailability?.(dayIndex, seg.time);
+                  }
+                  if (mode === "tutor-schedule" && seg.bookingId) {
+                    onSelectBooking?.(seg.bookingId);
+                  }
+                };
+
+                // Compute block boundaries for ANY segment inside an availability block
+                let blockStart: string | null = null;
+                let blockEnd: string | null = null;
+
+                if (seg.type === "available" && mode === "student") {
+                  // Walk backwards to find block start
+                  let startIndex = segIndex;
+                  while (
+                    startIndex > 0 &&
+                    day.segments[startIndex - 1].type === "available"
+                  ) {
+                    startIndex--;
+                  }
+
+                  // Walk forwards to find block end
+                  let endIndex = segIndex;
+                  while (
+                    endIndex + 1 < day.segments.length &&
+                    day.segments[endIndex + 1].type === "available"
+                  ) {
+                    endIndex++;
+                  }
+
+                  blockStart = day.segments[startIndex].time.slice(0, 5);
+                  blockEnd = day.segments[endIndex].time.slice(0, 5);
+
+                  handleClick = () => {
+                    console.log("BLOCK CLICKED →", {
+                      date: day.date,
+                      blockStart,
+                      blockEnd
+                    });
+
+                    onSelectSlot?.(day.date, blockStart!, blockEnd!);
+                  };
+                }
+
+                const isStartOfBlock = availabilityStarts.includes(segIndex);
+
+                return (
+                  <div
+                    key={segIndex}
+                    className={`segment ${seg.type}`}
+                    style={{
+                      backgroundColor: color,
+                      position: "relative",
+                      height: "2px",
+                      margin: 0,
+                      padding: 0,
+                      border: "none"
+                    }}
+                    onClick={handleClick}
+                  >
+
+                    {/* Label only at block start */}
+                    {isStartOfBlock && blockEnd && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "-18px",
+                          left: "2px",
+                          fontSize: "14px",
+                          color: "#333"
+                        }}
+                      >
+                        {seg.time.slice(0, 5)}-{blockEnd}
+                      </div>
+                    )}
+
+                  </div>
+                );
+              })}
+
+            </div>
+          );
+        })}
+
+      </div>
+    </div>
+  );
+}

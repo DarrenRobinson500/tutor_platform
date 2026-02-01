@@ -1,0 +1,320 @@
+import { useParams } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { WeeklyCalendar } from "./components/WeeklyCalendar";
+import { Layout } from "./components/Layout";
+
+export interface Segment {
+  time: string;
+  type: string;
+  bookingId?: number;
+}
+
+export interface AvailabilityWindow {
+  start: string;
+  end: string;
+}
+
+export interface Booking {
+  start: string;
+  end: string;
+  student: number;
+}
+
+export interface DayData {
+  date: string;
+  availability: AvailabilityWindow[];
+  blocked: boolean;
+  bookings: Booking[];
+  bookable_slots: string[];
+  segments: Segment[];
+}
+
+export type WeekData = DayData[];
+
+// Helper: get Monday in YYYY-MM-DD format
+function getMonday(date: Date): string {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(d.setDate(diff));
+  return monday.toISOString().slice(0, 10);
+}
+
+// ⭐ Round up to nearest buffer increment
+function roundUpToBuffer(date: Date, buffer: number) {
+  const minutes = date.getMinutes();
+  const remainder = minutes % buffer;
+  if (remainder === 0) return date;
+  return new Date(date.getTime() + (buffer - remainder) * 60000);
+}
+
+export function StudentHomePage() {
+  const { id } = useParams();
+  const [student, setStudent] = useState<any>(null);
+
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [week, setWeek] = useState<WeekData | null>(null);
+  const [tutorSettings, setTutorSettings] = useState<any>(null);
+  const [manualDate, setManualDate] = useState("");
+  const [manualTime, setManualTime] = useState("");
+  const [repeatWeekly, setRepeatWeekly] = useState(false);
+  const [manualMessage, setManualMessage] = useState("");
+
+
+
+  const [slotOptions, setSlotOptions] = useState<{
+    date: string;
+    blockStart: string;
+    blockEnd: string;
+    validStarts: string[];
+  } | null>(null);
+
+  const [showBookingModal, setShowBookingModal] = useState(false);
+
+  const handleManualBooking = async () => {
+    if (!manualDate || !manualTime) {
+      setManualMessage("Please choose a date and time.");
+      return;
+    }
+
+    const payload = {
+      student_id: student.id,
+      date: manualDate,
+      time: manualTime,
+      repeat_weekly: repeatWeekly
+    };
+
+    const res = await fetch(`/api/tutors/${tutorId}/check_and_book/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+
+    setManualMessage(data.message);
+
+    if (data.status === "ok") {
+      loadCalendar();
+    }
+  };
+
+  // Load student
+  useEffect(() => {
+    fetch(`/api/students/${id}/home/`)
+      .then(res => res.json())
+      .then(async data => {
+        console.log("Loaded student:", data);
+        setStudent(data);
+
+        // ⭐ Fetch tutor settings
+        if (data.tutor_id) {
+          const tutorRes = await fetch(`/api/tutors/${data.tutor_id}/session_settings/`);
+          const tutorSettings = await tutorRes.json();
+          console.log("Loaded tutor settings:", tutorSettings);
+
+          setTutorSettings(tutorSettings);
+        }
+      });
+  }, [id]);
+
+  const tutorId = student?.tutor_id;
+
+  useEffect(() => {
+    if (tutorId) {
+      loadCalendar();
+    }
+  }, [tutorId]);
+
+  // Load weekly calendar
+  const loadCalendar = async () => {
+    if (!tutorId) return;
+    const monday = getMonday(new Date());
+    const res = await fetch(`/api/tutors/${tutorId}/weekly_slots/?week_start=${monday}`);
+    const data = await res.json();
+    setWeek(data.week);
+    setShowCalendar(true);
+  };
+
+  // Student clicked an availability block
+  const handleSelectSlot = (day: string, blockStart: string, blockEnd: string) => {
+    console.log("StudentHomePage received block:", { day, blockStart, blockEnd });
+
+    const start = new Date(`${day}T${blockStart}:00`);
+    const end = new Date(`${day}T${blockEnd}:00`);
+
+    const sessionMinutes = Number(tutorSettings.default_session_minutes);
+    const buffer = Number(tutorSettings.buffer_minutes);
+
+
+    console.log("Session + buffer:", {
+      sessionMinutes,
+      buffer,
+      start,
+      end
+    });
+
+    const validStarts: string[] = [];
+
+    // ⭐ Round up to nearest buffer increment
+    let t = roundUpToBuffer(new Date(start), buffer);
+
+    while (t.getTime() + sessionMinutes * 60000 <= end.getTime()) {
+      validStarts.push(t.toISOString().slice(11, 16)); // "HH:MM"
+      t = new Date(t.getTime() + buffer * 60000);
+    }
+
+    console.log("Valid starts:", validStarts);
+
+    setSlotOptions({
+      date: day,
+      blockStart,
+      blockEnd,
+      validStarts
+    });
+
+    setShowBookingModal(true);
+  };
+
+  // Student chooses a specific start time
+  const handleBook = async (startTime: string) => {
+    if (!slotOptions) return;
+
+    const start = new Date(`${slotOptions.date}T${startTime}:00`);
+    const end = new Date(start.getTime() + student.default_session_minutes * 60000);
+
+    await fetch(`/api/tutors/${student.tutor_id}/book/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        student_id: student.id,
+        start: start.toISOString(),
+        end: end.toISOString()
+      })
+    });
+
+    setShowBookingModal(false);
+    setSlotOptions(null);
+    loadCalendar();
+  };
+
+  if (!student) {
+    return (
+      <Layout>
+        <div className="container mt-4">Loading…</div>
+      </Layout>
+    );
+  }
+
+  return (
+    <Layout>
+      <div className="container mt-4">
+        <h1>Welcome back {student.name} ({student.id})</h1>
+
+        <h2>Tutor ID: {tutorId}</h2>
+        <p>{student.email}</p>
+
+        <div className="manual-booking d-flex align-items-end gap-3 mt-4 p-3 border rounded">
+          <div>
+            <label>Date</label>
+            <input
+              type="date"
+              className="form-control"
+              value={manualDate}
+              onChange={e => setManualDate(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label>Start time</label>
+            <input
+              type="time"
+              className="form-control"
+              value={manualTime}
+              onChange={e => setManualTime(e.target.value)}
+            />
+          </div>
+
+          <div className="form-check mb-2">
+            <input
+              type="checkbox"
+              className="form-check-input"
+              id="repeatWeekly"
+              checked={repeatWeekly}
+              onChange={e => setRepeatWeekly(e.target.checked)}
+            />
+            <label htmlFor="repeatWeekly" className="form-check-label">
+              Every week
+            </label>
+          </div>
+
+          <button
+            className="btn btn-success"
+            onClick={handleManualBooking}
+          >
+            Book Session
+          </button>
+        </div>
+        <br/>
+        <div style={{ marginBottom: "1.5rem", fontSize: "1.4rem", fontWeight: 600 }}>
+          {student?.tutor_name
+            ? `${student.tutor_name}'s Calendar`
+            : "Tutor's Calendar"}
+        </div>
+
+        {week && (
+          <WeeklyCalendar
+            week={week}
+            mode="student"
+            onSelectSlot={handleSelectSlot}
+          />
+        )}
+
+
+        {/* Debug log */}
+
+        {showBookingModal && slotOptions && tutorSettings && (
+          <div
+            className="booking-modal"
+            style={{
+              position: "fixed",
+              top: "20%",
+              left: "50%",
+              transform: "translateX(-50%)",
+              background: "white",
+              padding: "20px",
+              border: "1px solid #ccc",
+              zIndex: 9999,
+              boxShadow: "0 4px 20px rgba(0,0,0,0.2)"
+            }}
+          >
+            <h3>Select a start time</h3>
+
+            {slotOptions.validStarts.length === 0 && (
+              <p>No valid start times available in this block.</p>
+            )}
+
+            {slotOptions.validStarts.map(t => (
+              <button
+                key={t}
+                className="btn btn-primary m-1"
+                onClick={() => handleBook(t)}
+              >
+                {t}
+              </button>
+            ))}
+
+            <button
+              className="btn btn-secondary mt-3"
+              onClick={() => setShowBookingModal(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
+        <hr />
+      </div>
+    </Layout>
+  );
+}

@@ -10,7 +10,6 @@ import { PreviewPanel } from "./components/PreviewPanel";
 import { LogsPanel } from "./components/LogsPanel";
 import { Layout } from "./components/Layout";
 import { DiagramEditor } from "./components/DiagramEditor";
-
 import { renderDiagramFromCode } from "../diagram/engine";
 
 // API hooks
@@ -29,26 +28,10 @@ interface PreviewResponse {
   substituted_yaml: string;
 }
 
-
-
 export function TemplateEditorPage() {
   const navigate = useNavigate();
   const params = useParams();
   const { id } = params;
-
-    const emptyMetadata: TemplateMetadata = {
-      id: undefined,
-      name: "",
-      subject: "",
-      topic: "",
-      difficulty: "",
-      tags: [],
-      curriculum: "",
-      status: "",
-      version: "",
-      skill: undefined
-    };
-
   const [metadata, setMetadata] = useState<TemplateMetadata>(emptyMetadata);
   const isNew = id === "new";
   const [isSaving, setIsSaving] = useState(false);
@@ -58,6 +41,22 @@ export function TemplateEditorPage() {
   const [validationResult, setValidationResult] = useState<any>(null);
   const [previewResult, setPreviewResult] = useState<any>(null);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
+  const { getTemplate, saveTemplate } = useTemplateApi();
+  const { validateTemplate } = useValidationApi();
+  const { previewTemplate } = usePreviewApi();
+
+  const emptyMetadata: TemplateMetadata = {
+    id: undefined,
+    name: "",
+    subject: "",
+    topic: "",
+    difficulty: "",
+    tags: [],
+    curriculum: "",
+    status: "",
+    version: "",
+    skill: undefined
+  };
 
   // Debounced function
   const debouncedPreview = useRef(
@@ -77,152 +76,138 @@ export function TemplateEditorPage() {
   ).current;
 
 
-
-  // API hooks
-  const { getTemplate, saveTemplate } = useTemplateApi();
-  const { validateTemplate } = useValidationApi();
-  const { previewTemplate } = usePreviewApi();
-
-function extractDiagramSvg(yamlText: string): string {
-  try {
-    const parsed: any = yaml.load(yamlText);
-    return parsed?.diagram?.svg || "";
-  } catch {
-    return "";
-  }
-}
-
-function updateYamlWithDiagram(originalYaml: string, newSvg: string, newCode: string): string {
-  let parsed: any;
-
-  try {
-    parsed = yaml.load(originalYaml) || {};
-  } catch {
-    return originalYaml;
+  function extractDiagramSvg(yamlText: string): string {
+    try {
+      const parsed: any = yaml.load(yamlText);
+      return parsed?.diagram?.svg || "";
+    } catch {
+      return "";
+    }
   }
 
-  if (!parsed.diagram) {
-    parsed.diagram = {};
-  }
-
-  parsed.diagram.type = "svg";
-  parsed.diagram.code = newCode;
-  parsed.diagram.svg = newSvg;
-
-  return yaml.dump(parsed, { lineWidth: -1 });
-}
-
-
-    useEffect(() => {
-      async function load() {
-        if (!id) return;
-
-        const tpl = await getTemplate(id);
-        if (!tpl) return;
-
-        // 1. Load YAML into the editor
-        setContent(tpl.content);
-
-        // 2. Load metadata
-        setMetadata({
-          name: tpl.name || "",
-          subject: tpl.subject || "",
-          topic: tpl.topic || "",
-          difficulty: tpl.difficulty || "",
-          tags: tpl.tags || [],
-          curriculum: tpl.curriculum || "",
-          status: tpl.status || "",
-          version: tpl.version || "",
-          skill: tpl.skill || null,
-        });
-
-        // 4. Generate initial preview
-        const res = await fetch("/api/templates/preview/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: tpl.content }),
-        });
-        const data = await res.json();
-        setPreview(data.preview);
-        console.log("FRONTEND RECEIVED PREVIEW:", data);
+// function updateYamlWithDiagram(originalYaml: string, newSvg: string, newCode: string): string {
+//   let parsed: any;
+//
+//   try {
+//     parsed = yaml.load(originalYaml) || {};
+//   } catch {
+//     return originalYaml;
+//   }
+//
+//   if (!parsed.diagram) {
+//     parsed.diagram = {};
+//   }
+//
+//   parsed.diagram.type = "svg";
+//   parsed.diagram.code = newCode;
+//   parsed.diagram.svg = newSvg;
+//
+//   return yaml.dump(parsed, { lineWidth: -1 });
+// }
 
 
+  useEffect(() => {
+    async function load() {
+      if (!id) return;
 
-      }
+      const tpl = await getTemplate(id);
+      if (!tpl) return;
 
-      load();
-    }, [id]);
+      // 1. Load YAML into the editor
+      setContent(tpl.content);
+
+      // 2. Load metadata
+      setMetadata({
+        name: tpl.name || "",
+        subject: tpl.subject || "",
+        topic: tpl.topic || "",
+        difficulty: tpl.difficulty || "",
+        tags: tpl.tags || [],
+        curriculum: tpl.curriculum || "",
+        status: tpl.status || "",
+        version: tpl.version || "",
+        skill: tpl.skill || null,
+      });
+
+      // 3. Generate initial preview
+      const res = await fetch("/api/templates/preview/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: tpl.content }),
+      });
+      const data = await res.json();
+      setPreview(data.preview);
+      console.log("FRONTEND RECEIVED PREVIEW:", data);
+    }
+    load();
+  }, [id]);
 
   // Handler - Change
   function handleContentChange(newContent: string) {
     setContent(newContent);
-//     debouncedPreview(newContent);
+    debouncedPreview(newContent);
   }
 
-const handleToSkill = () => {
-  if (metadata.skill) {
-    navigate(`/skills/${metadata.skill}`);
-  }
-};
+  const handleToSkill = () => {
+    if (metadata.skill) {
+      navigate(`/skills/${metadata.skill}`);
+    }
+  };
 
-
-    const handleEditorChange = (newValue: string) => {
-      setContent(newValue);
-
-      if (!newValue.trim()) {
-        setValidationResult(null);
-        setPreviewResult(null);
-        return; // stop here — do NOT call backend
-      }
-    };
+  const handleEditorChange = (newValue: string) => {
+    setContent(newValue);
+    if (!newValue.trim()) {
+      setValidationResult(null);
+      setPreviewResult(null);
+      return; // stop here — do NOT call backend
+    }
+  };
 
   // Handler - Save
-    const handleSave = async () => {
-      // CREATE
-      if (!metadata.id) {
-        const res = await fetch("/api/templates/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...metadata,
-            content
-          }),
-        });
+  const handleSave = async () => {
+    // CREATE
+    if (!metadata.id) {
+      const res = await fetch("/api/templates/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...metadata,
+          content
+        }),
+      });
 
-        const data = await res.json();
+      const data = await res.json();
 
-        setMetadata(prev => ({
-          ...prev,
-          id: data.id
-        }));
+      setMetadata(prev => ({
+        ...prev,
+        id: data.id
+      }));
 
-        navigate(`/templates/${data.id}`);
+      navigate(`/templates/${data.id}`);
 
-        return; // ⭐ critical
-      }
+      return; // ⭐ critical
+    }
 
-      // UPDATE
-      setIsSaving(true);
-      setSaveError(null);
-      setSaveSuccess(false);
+    // UPDATE
+    setIsSaving(true);
+    setSaveError(null);
+    setSaveSuccess(false);
 
-      try {
-        const payload = { content, ...metadata };
-        console.log("Payload being sent:", payload);
+    try {
+      const payload = { content, ...metadata };
+      console.log("Payload being sent:", payload);
 
-        const result = await saveTemplate(metadata.id!, payload);
-        console.log("Save result:", result);
+      const result = await saveTemplate(metadata.id!, payload);
+      console.log("Save result:", result);
 
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 2000);
-      } catch (err: any) {
-        setSaveError(err.message || "Failed to save template");
-      } finally {
-        setIsSaving(false);
-      }
-    };
-
-
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to save template");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleValidate = async () => {
     const result = await validateTemplate({ content });
@@ -242,7 +227,6 @@ const handleToSkill = () => {
       }));
     };
 
-
   return (
   <Layout>
     <div className="template-editor-page">
@@ -259,60 +243,49 @@ const handleToSkill = () => {
         onToSkill={handleToSkill}
       />
 
-<div className="container-fluid">
-  <div className="row" style={{ height: "70vh" }}>
+    <div className="container-fluid">
+      <div className="row" style={{ height: "70vh" }}>
 
-    {/* Panel 1: Editor (Template source) */}
-    <div className="col-md-4 d-flex flex-column" style={{ height: "100%" }}>
-      <div className="card shadow-sm flex-grow-1">
-        <div className="card-header">Question Definition</div>
-        <div className="card-body p-0 d-flex flex-column" style={{ overflow: "hidden" }}>
-          <EditorPanel
-            content={content}
-            onChange={handleContentChange}
-            validation={validationResult}
-            templateId={id ?? null}
-          />
+        {/* Panel 1: Editor (Template source) */}
+        <div className="col-md-4 d-flex flex-column" style={{ height: "100%" }}>
+          <div className="card shadow-sm flex-grow-1">
+            <div className="card-header">Question Definition</div>
+            <div className="card-body p-0 d-flex flex-column" style={{ overflow: "hidden" }}>
+              <EditorPanel
+                content={content}
+                onChange={handleContentChange}
+                validation={validationResult}
+                templateId={id ?? null}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Panel 2: Values (Substituted YAML) */}
+        <div className="col-md-4 d-flex flex-column" style={{ height: "100%" }}>
+          <div className="card shadow-sm flex-grow-1">
+            <div className="card-header">Question Definition (Values Populated)</div>
+            <div className="card-body overflow-auto">
+              <ValuesPanel substitutedYaml={preview?.substituted_yaml ?? null} />
+            </div>
+          </div>
+        </div>
+
+        {/* Panel 3: Preview (Student view + Diagram) */}
+        <div className="col-md-4 d-flex flex-column" style={{ height: "100%" }}>
+          <div className="card shadow-sm flex-grow-1">
+            <div className="card-header">Student Preview</div>
+            <div className="card-body p-2 d-flex flex-column" style={{ overflow: "hidden" }}>
+              <PreviewPanel
+                preview={preview}
+                templateContent={content}
+                onNext={(newPreview) => setPreview(newPreview)}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>
-
-    {/* Panel 2: Values (Substituted YAML) */}
-    <div className="col-md-4 d-flex flex-column" style={{ height: "100%" }}>
-      <div className="card shadow-sm flex-grow-1">
-        <div className="card-header">Question Definition (Values Populated)</div>
-        <div className="card-body overflow-auto">
-          <ValuesPanel substitutedYaml={preview?.substituted_yaml ?? null} />
-        </div>
-      </div>
-    </div>
-
-    {/* Panel 3: Preview (Student view + Diagram) */}
-    <div className="col-md-4 d-flex flex-column" style={{ height: "100%" }}>
-      <div className="card shadow-sm flex-grow-1">
-        <div className="card-header">Student Preview</div>
-        <div className="card-body p-2 d-flex flex-column" style={{ overflow: "hidden" }}>
-
-          <PreviewPanel
-            preview={preview}
-            templateContent={content}
-            onNext={(newPreview) => setPreview(newPreview)}
-          />
-
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-      {/* Bottom logs */}
-    </div>
-
-
-
-
-</Layout>
-
+  </Layout>
   );
 }

@@ -1,0 +1,22 @@
+root = true
+
+# Python (backend)
+[*.py]
+indent_style = space
+indent_size = 4
+
+# TypeScript (frontend)
+[*.ts]
+indent_style = space
+indent_size = 2
+
+[*.tsx]
+indent_style = space
+indent_size = 2
+
+# JSON, YAML, etc. (optional)
+[*.json]
+indent_size = 2
+
+[*.yml]
+indent_size = 2
