@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings as django_settings
@@ -87,11 +89,16 @@ class TutorProfile(models.Model):
 
     def __str__(self): return f"Profile {self.tutor} {self.id}"
 
-    def appointment_status(self, date_obj, time_obj):
+    def appointment_status(self, date_obj, time_obj, student=None):
         dt = make_aware(datetime.combine(date_obj, time_obj))
 
         if TutorBlockedDay.objects.filter(tutor=self.tutor, date=date_obj).exists(): return "blocked"
-        if Appointment.objects.filter(tutor=self.tutor, start_datetime__lte=dt, end_datetime__gt=dt).exists(): return "booked"
+        appt = Appointment.objects.filter(tutor=self.tutor, start_datetime__lte=dt, end_datetime__gt=dt).first()
+        if appt:
+            print("Appointment status:", appt.student, student)
+            if student and appt.student == student:
+                return "booked_self"
+            return "booked_other"
 
         weekday = date_obj.weekday()  # Monday=0 ... Sunday=6
         availability = TutorAvailability.objects.filter(tutor=self.tutor, weekday=weekday)
@@ -100,37 +107,206 @@ class TutorProfile(models.Model):
             if window.start_time <= time_obj < window.end_time:
                 return "available"
         return "outside"
+    #
+    # def generate_weekly_slots_old(self, week_start, student=None, tutor_view=False):
+    #     session_td = timedelta(minutes=self.default_session_minutes)
+    #     week = []
+    #
+    #     for i in range(7):
+    #         day_date = week_start + timedelta(days=i)
+    #         week.append({"date": day_date, "bookable_slots": [], "segments": []})
+    #
+    #     for day in week:
+    #         d = day["date"]
+    #
+    #         for minute in range(0, 24 * 60, 15):
+    #             t = (datetime.min + timedelta(minutes=minute)).time()
+    #             status = self.appointment_status(d, t, student)
+    #             segment = {"time": t, "type": status}
+    #             if status in ["booked_other", "booked_self"]:
+    #                 appt = Appointment.objects.filter(
+    #                     tutor=self.tutor,
+    #                     start_datetime__lte=make_aware(datetime.combine(d, t)),
+    #                     end_datetime__gt=make_aware(datetime.combine(d, t))
+    #                 ).select_related("student").first()
+    #
+    #                 if appt:
+    #                     segment["studentName"] = appt.student.first_name
+    #                     segment["bookingId"] = appt.id
+    #
+    #             day["segments"].append(segment)
+    #
+    #             if status != "available": continue
+    #
+    #             end_dt = datetime.combine(d, t) + session_td
+    #             end_t = end_dt.time()
+    #             end_status = self.appointment_status(d, end_t, student)
+    #
+    #             if end_status == "available":
+    #                 day["bookable_slots"].append(t)
+    #
+    #     return week
 
-    def is_available(self, date, start, end):
-        start_available = self.appointment_status(date, start) == "available"
-        end_available = self.appointment_status(date, end) == "available"
-        print("Is available (start, end):", start_available, self.appointment_status(date, start), end_available, self.appointment_status(date, end))
-        return start_available and end_available
+    def appointment_status_fast(
+        self,
+        date_obj,
+        time_obj,
+        student,
+        blocked_days,
+        appointments_by_date,
+        availability_by_weekday,
+    ):
+        """
+        Returns (status, appt_or_none), where status is one of:
+        'blocked', 'booked_self', 'booked_other', 'available', 'outside'
+        and appt_or_none is the Appointment instance if booked, else None.
+        """
 
+        # 1. Blocked day
+        if date_obj in blocked_days:
+            return "blocked", None
 
-    def generate_weekly_slots(self, week_start):
+        dt = make_aware(datetime.combine(date_obj, time_obj))
 
+        # 2. Appointment check (using pre-fetched appointments for that date)
+        for appt in appointments_by_date.get(date_obj, []):
+            if appt.start_datetime <= dt < appt.end_datetime:
+                if student and appt.student == student:
+                    return "booked_self", appt
+                return "booked_other", appt
+
+        # 3. Availability windows
+        weekday = date_obj.weekday()  # Monday=0 ... Sunday=6
+        windows = availability_by_weekday.get(weekday, [])
+        for window in windows:
+            if window.start_time <= time_obj < window.end_time:
+                return "available", None
+
+        # 4. Outside availability
+        return "outside", None
+
+    # ─────────────────────────────────────────────────────────
+    # Efficient weekly slots generator
+    # ─────────────────────────────────────────────────────────
+    def generate_weekly_slots(self, week_start, student=None, tutor_view=False):
         session_td = timedelta(minutes=self.default_session_minutes)
-
         week = []
+
+        # Build the week skeletonx`
         for i in range(7):
             day_date = week_start + timedelta(days=i)
             week.append({"date": day_date, "bookable_slots": [], "segments": []})
 
+        # ── 1. Fetch all appointments for the week in one query
+        week_start_dt = make_aware(datetime.combine(week_start, time.min))
+        week_end_dt = make_aware(datetime.combine(week_start + timedelta(days=7), time.min))
+
+        appointments = list(
+            Appointment.objects.filter(
+                tutor=self.tutor,
+                start_datetime__lt=week_end_dt,
+                end_datetime__gt=week_start_dt,
+            ).select_related("student")
+        )
+
+        # Group appointments by date for fast lookup
+        appointments_by_date = defaultdict(list)
+        for appt in appointments:
+            # We care about each date the appointment touches; simplest is to
+            # group by the date of the start, which matches your 1‑day slots.
+            date_key = appt.start_datetime.date()
+            appointments_by_date[date_key].append(appt)
+
+        appt_start_times = defaultdict(set)
+
+        for appt in appointments:
+            date_key = appt.start_datetime.date()
+            start_time = appt.start_datetime.time().replace(second=0, microsecond=0)
+            appt_start_times[date_key].add(start_time)
+
+        # ── 2. Fetch blocked days for the week
+        blocked_days = set(
+            TutorBlockedDay.objects.filter(
+                tutor=self.tutor,
+                date__gte=week_start,
+                date__lt=week_start + timedelta(days=7),
+            ).values_list("date", flat=True)
+        )
+
+        # ── 3. Fetch availability windows for the tutor
+        availability_by_weekday = {}
+        for av in TutorAvailability.objects.filter(tutor=self.tutor):
+            availability_by_weekday.setdefault(av.weekday, []).append(av)
+
+        # ── 4. Build segments and bookable slots in memory
         for day in week:
             d = day["date"]
+
             for minute in range(0, 24 * 60, 15):
                 t = (datetime.min + timedelta(minutes=minute)).time()
-                status = self.appointment_status(d, t)
-                day["segments"].append({"time": t, "type": status})
 
-                if status != "available": continue
+                status, appt = self.appointment_status_fast(
+                    d, t, student,
+                    blocked_days,
+                    appointments_by_date,
+                    availability_by_weekday,
+                )
+
+                if tutor_view and status in ("booked_self", "booked_other"):
+                    status = "booked_other"
+
+                segment = {"time": t, "type": status}
+
+                if appt:
+                    segment["bookingId"] = appt.id
+
+                    # Only label the FIRST slot of the appointment
+                    if t in appt_start_times[d]:
+
+                        # Student view → only show THEIR name
+                        if student is not None:
+                            if appt.student_id == student.id:
+                                segment["studentName"] = appt.student.first_name
+
+                        # Tutor view → show ALL names
+                        else:
+                            segment["studentName"] = appt.student.first_name
+
+                day["segments"].append(segment)
+
+                # Only compute bookable_slots for available segments
+                if status != "available":
+                    continue
+
                 end_dt = datetime.combine(d, t) + session_td
                 end_t = end_dt.time()
-                end_status = self.appointment_status(d, end_t)
-                if end_status == "available": day["bookable_slots"].append(t)
+
+                end_status, _ = self.appointment_status_fast(
+                    d,
+                    end_t,
+                    student,
+                    blocked_days,
+                    appointments_by_date,
+                    availability_by_weekday,
+                )
+
+                if end_status == "available":
+                    day["bookable_slots"].append(t)
+
+        print("Generate Slots (week):")
+        # print(week)
 
         return week
+
+
+
+    def is_available(self, date, start, end):
+        start_available = self.appointment_status(date, start) == "available"
+        end_available = self.appointment_status(date, end) == "available"
+        print("Is available (start, end):", start_available, self.appointment_status(date, start), end_available,
+              self.appointment_status(date, end))
+        return start_available and end_available
+
 
 class Skill(models.Model):
     parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, related_name="children")
@@ -193,6 +369,8 @@ class Appointment(models.Model):
     start_datetime = models.DateTimeField()
     end_datetime = models.DateTimeField()
     status = models.CharField(max_length=20)
+    created_by = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="appointments_created")
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self): return f"{self.start_datetime} {self.student} {self.tutor}"
 
@@ -286,10 +464,19 @@ class QuestionAttempt(models.Model):
 
     attempted_at = models.DateTimeField(auto_now_add=True, null=True)
 
-
-
 class SyllabusMapping(models.Model):
     template = models.ForeignKey(Template, on_delete=models.CASCADE)
     region = models.CharField(max_length=50)
     outcome_code = models.CharField(max_length=50)
 
+class Note(models.Model):
+    author = models.ForeignKey(django_settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.CASCADE, related_name="notes")
+    template = models.ForeignKey(Template, null=True, blank=True, on_delete=models.SET_NULL, related_name="notes")
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    category = models.CharField(max_length=50, blank=True, null=True)
+
+    def __str__(self):
+        if self.template:
+            return f"Note by {self.author} on {self.template.name}"
+        return f"Note by {self.author} (general)"

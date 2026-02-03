@@ -1,5 +1,11 @@
 from django.contrib.auth.hashers import make_password
+from rest_framework.permissions import IsAuthenticated
 from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from django.contrib.auth import authenticate, login, logout
+
 from .validation import *
 from .rendering import *
 from rest_framework.decorators import action
@@ -12,11 +18,41 @@ from .utilities import *
 from .serializers import *
 from .tutor_calendar import *
 
+class AuthViewSet(viewsets.ViewSet):
+    permission_classes = [AllowAny]
+
+    @action(detail=False, methods=["post"])
+    def login(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+
+        print("LOGIN ATTEMPT:", username, password)
+
+        user = authenticate(request, username=username, password=password)
+        print("AUTH RESULT:", user)
+
+        if user is None:
+            return Response({"error": "Invalid credentials"}, status=400)
+
+        login(request, user)
+
+        return Response({
+            "id": user.id,
+            "username": user.username,
+            "role": user.role,
+            "first_name": user.first_name,
+        })
+
+    @action(detail=False, methods=["post"])
+    def logout(self, request):
+        logout(request)
+        return Response({"success": True})
 
 
 class TemplateViewSet(viewsets.ModelViewSet):
     queryset = Template.objects.all()
     serializer_class = TemplateSerializer
+    permission_classes = [IsAuthenticated]
 
     @action(detail=False, methods=["post"])
     def autosave(self, request):
@@ -168,6 +204,7 @@ class TemplateViewSet(viewsets.ModelViewSet):
 
 class SkillViewSet(viewsets.ModelViewSet):
     queryset = Skill.objects.all().order_by("order_index")
+    permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
         if self.action in ["retrieve", "children"]:
@@ -257,9 +294,7 @@ class SkillViewSet(viewsets.ModelViewSet):
 class TutorViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = User.objects.filter(role="tutor").order_by("username")
     serializer_class = UserSerializer
-    # print("TutorViewSet:", queryset)
-    # for tutor in queryset:
-    #     print("Tutor", tutor.id, tutor)
+    permission_classes = [IsAuthenticated]
 
     @action(detail=True, methods=["get"])
     def home(self, request, pk=None):
@@ -381,6 +416,9 @@ class TutorViewSet(viewsets.ReadOnlyModelViewSet):
     def weekly_slots(self, request, pk=None):
         user = self.get_object()
         tutor = user.get_tutor_profile()
+        student_id = request.query_params.get("student")
+        student = User.objects.filter(pk=student_id).first()
+        print("Weekly slots (student)", student_id, student)
 
         week_start_str = request.query_params.get("week_start")
         if not week_start_str:
@@ -391,10 +429,8 @@ class TutorViewSet(viewsets.ReadOnlyModelViewSet):
         except ValueError:
             return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=400)
 
-        # FIX: ensure week starts on Sunday
         week_start = get_sunday_start(raw_date)
-
-        week_data = tutor.generate_weekly_slots(week_start)
+        week_data = tutor.generate_weekly_slots(week_start, student)
 
         return Response({"week": week_data}, status=200)
 
@@ -414,6 +450,7 @@ class TutorViewSet(viewsets.ReadOnlyModelViewSet):
         tutor = user.get_tutor_profile()
 
         student_id = request.data["student_id"]
+        student = User.objects.get(pk=student_id)
         date = request.data["date"]  # "2026-02-01"
         time = request.data["time"]  # "09:00"
         repeat = request.data.get("repeat_weekly", False)
@@ -453,7 +490,8 @@ class TutorViewSet(viewsets.ReadOnlyModelViewSet):
                     student_id=student_id,
                     start_datetime=start_dt,
                     end_datetime=end_dt,
-                    status="booked"
+                    status="booked",
+                    created_by=student,
                 )
                 created += 1
 
@@ -462,11 +500,27 @@ class TutorViewSet(viewsets.ReadOnlyModelViewSet):
             "message": f"Appointment booked ({created} sessions)"
         })
 
+    @action(detail=True, methods=["post"], url_path="delete_booking")
+    def delete_booking(self, request, pk=None):
+        user = self.get_object()  # the tutor in tutor_view OR the tutor of the student
+
+        booking_id = request.data.get("booking_id")
+        if not booking_id:
+            return Response({"error": "booking_id is required"}, status=400)
+        try:
+            appt = Appointment.objects.get(id=booking_id)
+        except Appointment.DoesNotExist:
+            return Response({"error": "Appointment not found"}, status=404)
+
+        appt.delete()
+        return Response({"status": "ok", "message": "Booking deleted"})
+
 # -------------- STUDENT ---------------- #
 
 class StudentViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = User.objects.filter(role="student").order_by("username")
     serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
 
     @action(detail=True, methods=["get"])
     def home(self, request, pk=None):
@@ -513,4 +567,12 @@ class StudentViewSet(viewsets.ReadOnlyModelViewSet):
             "linked_to_tutor": tutor_id,
 
         })
+
+class NoteViewSet(viewsets.ModelViewSet):
+    queryset = Note.objects.all().order_by("-created_at")
+    serializer_class = NoteSerializer
+
+    def perform_create(self, serializer):
+        user = self.request.user if self.request.user.is_authenticated else None
+        serializer.save(author=user)
 

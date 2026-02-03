@@ -1,10 +1,20 @@
 from django.contrib import admin
 from .models import *
 
-admin.site.register([User, TutorAvailability])
-admin.site.register(TutorProfile)
-admin.site.register(TutorStudent)
-admin.site.register(Appointment)
+admin.site.register([User, ])
+admin.site.register([TutorAvailability, TutorProfile, TutorStudent])
+admin.site.register([Skill, Template, Note])
 
-admin.site.register(Template)
-admin.site.register(Skill)
+@admin.register(Appointment)
+class AppointmentAdmin(admin.ModelAdmin):
+    list_display = (
+        "tutor",
+        "student",
+        "start_datetime",
+        "end_datetime",
+        "status",
+        "created_at",
+        "created_by",
+    )
+
+    readonly_fields = ("created_at", "created_by")

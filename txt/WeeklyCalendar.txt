@@ -7,6 +7,8 @@ interface WeeklyCalendarProps {
   onSelectSlot?: (day: string, blockStart: string, blockEnd: string) => void;
   onToggleAvailability?: (weekday: number, time: string) => void;
   onSelectBooking?: (bookingId: number) => void;
+  onDeleteBooking?: (bookingId: number) => void;
+  showAllBookingLabels?: boolean;
 }
 
 function getSegmentColor(type: string) {
@@ -25,11 +27,12 @@ export function WeeklyCalendar({
   mode,
   onSelectSlot,
   onToggleAvailability,
-  onSelectBooking
+  onSelectBooking,
+  onDeleteBooking,
+  showAllBookingLabels,
 }: WeeklyCalendarProps) {
 
   const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-
   const hours = Array.from({ length: 24 }, (_, i) =>
     String(i).padStart(2, "0") + ":00"
   );
@@ -39,30 +42,44 @@ export function WeeklyCalendar({
 
       {/* HEADER */}
       <div className="week-header" style={{ display: "flex", flexDirection: "row" }}>
-        <div className="time-header" style={{ flex: "0 0 60px" }}></div>
-        {days.map((d, i) => (
-          <div
-            key={i}
-            className="day-header"
-            style={{ flex: 1, textAlign: "center", fontWeight: "bold" }}
-          >
-            {d}
-          </div>
-        ))}
+        <div style={{ flex: "0 0 60px" }}></div>
+
+        {week.map((day, i) => {
+          const [year, month, dayNum] = day.date.split("-").map(Number);
+          const dateObj = new Date(year, month - 1, dayNum);
+
+          const formatted = dateObj.toLocaleDateString("en-AU", {
+            day: "numeric",
+            month: "short"
+          });
+
+          return (
+            <div
+              key={i}
+              style={{
+                flex: 1,
+                textAlign: "center",
+                fontWeight: "bold",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center"
+              }}
+            >
+              <div>{days[i]}</div>
+              <div style={{ fontSize: "0.8rem", color: "#666" }}>{formatted}</div>
+            </div>
+          );
+        })}
       </div>
 
       {/* BODY */}
       <div className="week-body" style={{ display: "flex", flexDirection: "row" }}>
 
         {/* TIME COLUMN */}
-        <div
-          className="time-column"
-          style={{ flex: "0 0 60px", display: "flex", flexDirection: "column" }}
-        >
+        <div style={{ flex: "0 0 60px", display: "flex", flexDirection: "column" }}>
           {hours.map((h, i) => (
             <div
               key={i}
-              className="time-label"
               style={{
                 height: "24px",
                 fontSize: "10px",
@@ -78,7 +95,7 @@ export function WeeklyCalendar({
         {/* DAY COLUMNS */}
         {week.map((day, dayIndex) => {
 
-          // Identify block starts for label placement
+          // Detect availability block starts (still needed)
           const availabilityStarts = day.segments
             .map((seg, i) => {
               const prev = day.segments[i - 1];
@@ -92,14 +109,12 @@ export function WeeklyCalendar({
           return (
             <div
               key={dayIndex}
-              className="day-column"
-              style={{ flex: 1, display: "flex", flexDirection: "column" }}
+              style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative" }}
             >
 
               {day.segments.map((seg, segIndex) => {
                 const color = getSegmentColor(seg.type);
 
-                // Default click handler
                 let handleClick = () => {
                   if (mode === "tutor-availability") {
                     onToggleAvailability?.(dayIndex, seg.time);
@@ -109,12 +124,12 @@ export function WeeklyCalendar({
                   }
                 };
 
-                // Compute block boundaries for ANY segment inside an availability block
+                // Availability block start/end detection
                 let blockStart: string | null = null;
                 let blockEnd: string | null = null;
+                let blockMinutes: number | null = null;
 
-                if (seg.type === "available" && mode === "student") {
-                  // Walk backwards to find block start
+                if (seg.type === "available") {
                   let startIndex = segIndex;
                   while (
                     startIndex > 0 &&
@@ -123,7 +138,6 @@ export function WeeklyCalendar({
                     startIndex--;
                   }
 
-                  // Walk forwards to find block end
                   let endIndex = segIndex;
                   while (
                     endIndex + 1 < day.segments.length &&
@@ -135,27 +149,28 @@ export function WeeklyCalendar({
                   blockStart = day.segments[startIndex].time.slice(0, 5);
                   blockEnd = day.segments[endIndex].time.slice(0, 5);
 
-                  handleClick = () => {
-                    console.log("BLOCK CLICKED →", {
-                      date: day.date,
-                      blockStart,
-                      blockEnd
-                    });
+                  const [sh, sm] = blockStart.split(":").map(Number);
+                  const [eh, em] = blockEnd.split(":").map(Number);
+                  const blockMinutes = (eh * 60 + em) - (sh * 60 + sm);
 
-                    onSelectSlot?.(day.date, blockStart!, blockEnd!);
-                  };
+  // Only students can click to book
+  if (mode === "student") {
+    handleClick = () => {
+      onSelectSlot?.(day.date, blockStart!, blockEnd!);
+    };
+  }
+
                 }
 
-                const isStartOfBlock = availabilityStarts.includes(segIndex);
+                const isStartOfAvailability = availabilityStarts.includes(segIndex);
 
                 return (
                   <div
                     key={segIndex}
-                    className={`segment ${seg.type}`}
                     style={{
                       backgroundColor: color,
                       position: "relative",
-                      height: "2px",
+                      height: "6px",
                       margin: 0,
                       padding: 0,
                       border: "none"
@@ -163,20 +178,70 @@ export function WeeklyCalendar({
                     onClick={handleClick}
                   >
 
-                    {/* Label only at block start */}
-                    {isStartOfBlock && blockEnd && (
+                    {/* Availability label */}
+                    {isStartOfAvailability && blockEnd && blockMinutes !== null && blockMinutes >= 30 && (
                       <div
                         style={{
                           position: "absolute",
-                          top: "-18px",
-                          left: "2px",
+                          top: "2px",
+                          left: "4px",
                           fontSize: "14px",
-                          color: "#333"
+                          color: "#333",
+                          pointerEvents: "none",
+                          zIndex: 1
                         }}
                       >
-                        {seg.time.slice(0, 5)}-{blockEnd}
+                        Available: {seg.time.slice(0, 5)}-{blockEnd}
                       </div>
                     )}
+
+                    {/* Booking label — now trivial */}
+                    {seg.studentName && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "2px",
+                          left: "4px",
+                          fontSize: "14px",
+                          color: "#333",
+                          pointerEvents: "none",
+                          zIndex: 1
+                        }}
+                      >
+                        {seg.studentName}: {seg.time.slice(0, 5)}
+                      </div>
+                    )}
+
+                    {/* Delete button (only on first slot of booking) */}
+                    {seg.studentName && seg.bookingId && (
+                      <>
+                        {(mode === "tutor-schedule" || seg.type === "booked_self") && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation(); // prevent selecting the block
+                              if (seg.bookingId !== undefined) {
+                                onDeleteBooking?.(seg.bookingId);
+                              }
+                            }}
+                            style={{
+                              position: "absolute",
+                              top: "2px",
+                              right: "4px",
+                              background: "transparent",
+                              border: "none",
+                              color: "#900",
+                              cursor: "pointer",
+                              fontSize: "14px",
+                              zIndex: 2
+                            }}
+                            title="Delete booking"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </>
+                    )}
+
 
                   </div>
                 );

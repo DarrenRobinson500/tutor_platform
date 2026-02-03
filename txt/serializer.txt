@@ -66,9 +66,3 @@ class TutorSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         depth = 1  # includes user details
-
-class NoteSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Note
-        fields = "__all__"
-        read_only_fields = ["id", "author", "created_at"]
