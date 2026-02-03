@@ -13,7 +13,7 @@ from rest_framework.response import Response
 from rest_framework import status
 import yaml
 from .import_skills import *
-# from .ai import generate_template_content
+from .ai import *
 from .utilities import *
 from .serializers import *
 from .tutor_calendar import *
@@ -151,40 +151,40 @@ class TemplateViewSet(viewsets.ModelViewSet):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    # @action(detail=False, methods=["post"])
-    # def generate(self, request):
-    #     skill_id = request.data.get("skill_id")
-    #
-    #     if not skill_id:
-    #         return Response({"error": "skill_id missing"}, status=400)
-    #     try:
-    #         skill = Skill.objects.get(id=skill_id)
-    #     except Skill.DoesNotExist:
-    #         return Response({"error": "Skill not found"}, status=404)
-    #
-    #     print("\nSkill:\n", skill.description)
-    #     data = generate_template_content(skill.description)
-    #     print("AI Output:\n", data)
-    #
-    #     created_templates = []
-    #
-    #     for item in data:
-    #         template = Template.objects.create(
-    #             skill=skill,
-    #             subject=item["title"],
-    #             content=format_for_editor(item),
-    #         )
-    #         created_templates.append(template)
-    #
-    #     # Return ONLY the first created template
-    #     first = created_templates[0]
-    #
-    #     return Response({
-    #         "id": first.id,
-    #         "subject": first.subject,
-    #         "content": first.content,
-    #         "skill": first.skill.id,
-    #     })
+    @action(detail=False, methods=["post"])
+    def generate(self, request):
+        skill_id = request.data.get("skill_id")
+
+        if not skill_id:
+            return Response({"error": "skill_id missing"}, status=400)
+        try:
+            skill = Skill.objects.get(id=skill_id)
+        except Skill.DoesNotExist:
+            return Response({"error": "Skill not found"}, status=404)
+
+        print("\nSkill:\n", skill.description)
+        data = generate_template_content(skill.description)
+        print("AI Output:\n", data)
+
+        created_templates = []
+
+        for item in data:
+            template = Template.objects.create(
+                skill=skill,
+                subject=item["title"],
+                content=format_for_editor(item),
+            )
+            created_templates.append(template)
+
+        # Return ONLY the first created template
+        first = created_templates[0]
+
+        return Response({
+            "id": first.id,
+            "subject": first.subject,
+            "content": first.content,
+            "skill": first.skill.id,
+        })
 
     @action(detail=True, methods=["post"])
     def diagram(self, request, pk=None):
