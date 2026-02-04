@@ -19,7 +19,7 @@ from .serializers import *
 from .tutor_calendar import *
 
 class AuthViewSet(viewsets.ViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     @action(detail=False, methods=["get"])
     def me(self, request):
