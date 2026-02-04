@@ -57,7 +57,7 @@ function handleCreateTemplate() {
     });
 }
 
-  fetch(`/api/skills/${id}/direct_templates/`)
+  apiFetch(`/api/skills/${id}/direct_templates/`)
     .then(res => res.json())
     .then(data => setTemplates(data));
 }, [id]);

@@ -1,0 +1,29 @@
+class AuthViewSet(viewsets.ViewSet):
+    permission_classes = [AllowAny]
+
+    @action(detail=False, methods=["post"])
+    def login(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+
+        print("LOGIN ATTEMPT:", username, password)
+
+        user = authenticate(request, username=username, password=password)
+        print("AUTH RESULT:", user)
+
+        if user is None:
+            return Response({"error": "Invalid credentials"}, status=400)
+
+        login(request, user)
+
+        return Response({
+            "id": user.id,
+            "username": user.username,
+            "role": user.role,
+            "first_name": user.first_name,
+        })
+
+    @action(detail=False, methods=["post"])
+    def logout(self, request):
+        logout(request)
+        return Response({"success": True})

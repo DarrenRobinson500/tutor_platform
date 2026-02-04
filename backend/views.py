@@ -19,22 +19,11 @@ from .serializers import *
 from .tutor_calendar import *
 
 class AuthViewSet(viewsets.ViewSet):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
-    @action(detail=False, methods=["post"])
-    def login(self, request):
-        username = request.data.get("username")
-        password = request.data.get("password")
-
-        print("LOGIN ATTEMPT:", username, password)
-
-        user = authenticate(request, username=username, password=password)
-        print("AUTH RESULT:", user)
-
-        if user is None:
-            return Response({"error": "Invalid credentials"}, status=400)
-
-        login(request, user)
+    @action(detail=False, methods=["get"])
+    def me(self, request):
+        user = request.user
 
         return Response({
             "id": user.id,
@@ -42,12 +31,6 @@ class AuthViewSet(viewsets.ViewSet):
             "role": user.role,
             "first_name": user.first_name,
         })
-
-    @action(detail=False, methods=["post"])
-    def logout(self, request):
-        logout(request)
-        return Response({"success": True})
-
 
 class TemplateViewSet(viewsets.ModelViewSet):
     queryset = Template.objects.all()
@@ -406,12 +389,6 @@ class TutorViewSet(viewsets.ReadOnlyModelViewSet):
         TutorBlockedDay.objects.filter(id=request.data.get("id")).delete()
         return Response({"status": "ok"})
 
-    # @action(detail=True, methods=["get"])
-    # def settings(self, request, pk=None):
-    #     tutor = self.get_object()
-    #     serializer = TutorSerializer(tutor)
-    #     return Response(serializer.data)
-    #
     @action(detail=True, methods=["get"])
     def weekly_slots(self, request, pk=None):
         user = self.get_object()
@@ -437,9 +414,7 @@ class TutorViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["get"])
     def session_settings(self, request, pk=None):
         user = self.get_object()
-        print("Session settings user", user)
         tutor = TutorProfile.objects.get(tutor=user)
-        print(tutor)
         serializer = TutorSerializer(tutor)
         return Response(serializer.data)
 

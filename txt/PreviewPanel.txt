@@ -30,7 +30,7 @@ export function PreviewPanel({preview, templateContent, onNext,}: PreviewPanelPr
   // Load next question
   // -------------------------------------------------------
   async function loadNextQuestion() {
-    const res = await fetch("/api/templates/preview/", {
+    const res = await apiFetch("/api/templates/preview/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: templateContent }),

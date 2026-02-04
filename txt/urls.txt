@@ -8,11 +8,6 @@ router.register(r"skills", SkillViewSet, basename="skills")
 router.register(r"tutors", TutorViewSet, basename="tutor")
 router.register(r"students", StudentViewSet, basename="student")
 router.register(r"notes", NoteViewSet, basename="note")
+router.register(r"auth", AuthViewSet, basename="auth")
 
-
-urlpatterns = [
-    path("auth/login/", login_view),
-    path("auth/logout/", logout_view),
-]
-
-urlpatterns += router.urls
+urlpatterns = router.urls

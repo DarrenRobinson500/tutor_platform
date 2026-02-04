@@ -81,7 +81,7 @@ export function StudentHomePage() {
     repeat_weekly: repeatWeekly
   };
 
-  const res = await fetch(`/api/tutors/${tutorId}/check_and_book/`, {
+  const res = await apiFetch(`/api/tutors/${tutorId}/check_and_book/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
@@ -98,7 +98,7 @@ export function StudentHomePage() {
 
   // Load student
   useEffect(() => {
-    fetch(`/api/students/${id}/home/`)
+    apiFetch(`/api/students/${id}/home/`)
       .then(res => res.json())
       .then(async data => {
         console.log("Loaded student:", data);
@@ -106,7 +106,7 @@ export function StudentHomePage() {
 
         // ⭐ Fetch tutor settings
         if (data.tutor_id) {
-          const tutorRes = await fetch(`/api/tutors/${data.tutor_id}/session_settings/`);
+          const tutorRes = await apiFetch(`/api/tutors/${data.tutor_id}/session_settings/`);
           const tutorSettings = await tutorRes.json();
           console.log("Loaded tutor settings:", tutorSettings);
 
@@ -136,7 +136,7 @@ export function StudentHomePage() {
         ? `/api/tutors/${tutorId}/weekly_slots/?week_start=${start}&student=${studentId}`
         : `/api/tutors/${tutorId}/weekly_slots/?week_start=${start}`;
 
-    const res = await fetch(url);
+    const res = await apiFetch(url);
     const data = await res.json();
 
     setWeek(data.week);
@@ -202,7 +202,7 @@ export function StudentHomePage() {
         repeat_weekly: false
       };
 
-      const res = await fetch(`/api/tutors/${student.tutor_id}/check_and_book/`, {
+      const res = await apiFetch(`/api/tutors/${student.tutor_id}/check_and_book/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

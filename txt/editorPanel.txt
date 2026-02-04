@@ -75,7 +75,7 @@ async function saveToBackend(templateId: string | number | null, content: string
   if (!templateId) {
     console.log("Autosave skipped: no templateId yet");
   return;}
-  const resp = await fetch("/api/templates/autosave/", {
+  const resp = await apiFetch("/api/templates/autosave/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ templateId, content }),

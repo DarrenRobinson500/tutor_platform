@@ -2,6 +2,7 @@
 import os
 import json
 import re
+import time
 
 def extract_json(text: str):
     if not text or not text.strip():
@@ -91,16 +92,30 @@ STRICT RULES:
 
 from openai import OpenAI
 
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+# api_key=os.environ["OPENAI_API_KEY"]
+chat_key=os.environ["CHAT_KEY"]
+print("Chat key:", chat_key)
+
+client = OpenAI(api_key=chat_key)
+print("Client:", client)
 
 def generate_template_content(skill_description: str) -> dict:
     prompt = f"You are an expert NSW mathematics tutor. Create a structured practice template for the skill: '{skill_description}'" + PROMPT_INSTRUCTIONS
 
+    start_time = time.time()
+
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-40-mini",
+        # model="gpt-5.2",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.4,
     )
+
+    end_time = time.time()
+    duration = end_time - start_time
+    print(f"Time taken: {duration:.2f} seconds")
+
+
 
     raw = response.choices[0].message.content
     print(raw)

@@ -61,7 +61,7 @@ export function TemplateEditorPage() {
   // Debounced function
   const debouncedPreview = useRef(
     debounce(async (content: string) => {
-      const res = await fetch("/api/templates/preview/", {
+      const res = await apiFetch("/api/templates/preview/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
@@ -130,7 +130,7 @@ export function TemplateEditorPage() {
       });
 
       // 3. Generate initial preview
-      const res = await fetch("/api/templates/preview/", {
+      const res = await apiFetch("/api/templates/preview/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: tpl.content }),
@@ -167,7 +167,7 @@ export function TemplateEditorPage() {
   const handleSave = async () => {
     // CREATE
     if (!metadata.id) {
-      const res = await fetch("/api/templates/", {
+      const res = await apiFetch("/api/templates/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
