@@ -1,0 +1,57 @@
+import "./App.css";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+
+import { TemplateListPage } from "./pages/TemplateListPage";
+import { TemplateEditorPage } from "./pages/TemplateEditorPage";
+import { NewTemplatePage } from "./pages/NewTemplatePage";
+import { SkillsListPage } from "./pages/SkillsListPage";
+import { SkillCreatePage } from "./pages/SkillCreatePage";
+import { TutorListPage } from "./pages/TutorListPage"
+import { TutorHomePage } from "./pages/TutorHomePage"
+import { TutorCreatePage } from "./pages/TutorCreatePage"
+import { TutorSchedulePage } from "./pages/TutorSchedulePage"
+import { StudentListPage } from "./pages/StudentListPage"
+import { StudentHomePage } from "./pages/StudentHomePage"
+import { StudentCreatePage } from "./pages/StudentCreatePage"
+import SkillsPage from "./pages/SkillsPage";
+import PrinciplesPage from "./pages/PrinciplesPage";
+import FeedbackPage from "./pages/FeedbackPage";
+import LoginPage from "./pages/LoginPage";
+
+import { useEffect, useState } from "react";
+import "bootstrap/dist/css/bootstrap.min.css";
+
+function App() {
+
+useEffect(() => {
+  window.addEventListener("error", (e) => {
+    console.log("GLOBAL ERROR:", e.error);
+  });
+}, []);
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/templates" element={<TemplateListPage />} />
+        <Route path="/templates/:id" element={<TemplateEditorPage />} />
+        <Route path="*" element={<TemplateListPage />} />
+        <Route path="/skills" element={<SkillsPage />} />
+        <Route path="/skills/new" element={<SkillCreatePage />} />
+        <Route path="/skills/:id" element={<SkillsPage />} />
+        <Route path="/skills/:parentId/new" element={<SkillCreatePage />} />
+        <Route path="/admin/tutors" element={<TutorListPage />} />
+        <Route path="/tutor/:id" element={<TutorHomePage />} />
+        <Route path="/admin/tutors/new" element={<TutorCreatePage />} />
+        <Route path="/admin/students" element={<StudentListPage />} />
+        <Route path="/student/:id" element={<StudentHomePage />} />
+        <Route path="/admin/students/new" element={<StudentCreatePage />} />
+        <Route path="/tutor/:id/schedule" element={<TutorSchedulePage />} />
+        <Route path="/principles" element={<PrinciplesPage />} />
+        <Route path="/feedback" element={<FeedbackPage />} />
+        <Route path="/login" element={<LoginPage />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;
