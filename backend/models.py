@@ -293,7 +293,7 @@ class TutorProfile(models.Model):
                 if end_status == "available":
                     day["bookable_slots"].append(t)
 
-        print("Generate Slots (week):")
+        # print("Generate Slots (week):")
         # print(week)
 
         return week

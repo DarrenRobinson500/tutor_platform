@@ -395,7 +395,7 @@ class TutorViewSet(viewsets.ReadOnlyModelViewSet):
         tutor = user.get_tutor_profile()
         student_id = request.query_params.get("student")
         student = User.objects.filter(pk=student_id).first()
-        print("Weekly slots (student)", student_id, student)
+        # print("Weekly slots (student)", student_id, student)
 
         week_start_str = request.query_params.get("week_start")
         if not week_start_str:
