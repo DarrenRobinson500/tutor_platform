@@ -3,6 +3,8 @@ import React, { useState, useEffect } from "react";
 import { WeeklyCalendar } from "./components/WeeklyCalendar";
 import { Layout } from "./components/Layout";
 import { WeekData } from "../types/weekly";
+import { apiFetch, apiFetchJson } from "../utils/apiFetch"
+
 
 export interface Segment {
   time: string;
@@ -149,73 +151,64 @@ export function StudentHomePage() {
     return d.toISOString().slice(0, 10);
   }
 
-
   const handleSelectSlot = (day: string, blockStart: string, blockEnd: string) => {
-    console.log("StudentHomePage received block:", { day, blockStart, blockEnd });
-
     const start = new Date(`${day}T${blockStart}:00`);
     const end = new Date(`${day}T${blockEnd}:00`);
-
     const sessionMinutes = Number(tutorSettings.default_session_minutes);
     const buffer = Number(tutorSettings.buffer_minutes);
-
-
-    console.log("Session + buffer:", {
-      sessionMinutes,
-      buffer,
-      start,
-      end
-    });
-
     const validStarts: string[] = [];
-
     let t = roundUpToBuffer(new Date(start), buffer);
-
     while (t.getTime() + sessionMinutes * 60000 <= end.getTime()) {
       const hours = String(t.getHours()).padStart(2, "0");
       const minutes = String(t.getMinutes()).padStart(2, "0");
       validStarts.push(`${hours}:${minutes}`);   // "HH:MM" in local time
-
       t = new Date(t.getTime() + buffer * 60000);
     }
-
-    console.log("Valid starts:", validStarts);
-
     setSlotOptions({
       date: day,
       blockStart,
       blockEnd,
       validStarts
     });
-
     setShowBookingModal(true);
   };
 
   // Student chooses a specific start time
-    const handleBook = async (startTime: string) => {
-      if (!slotOptions) return;
+  const handleBook = async (startTime: string) => {
+    if (!slotOptions) return;
 
-      const payload = {
-        student_id: student.id,
-        date: slotOptions.date,
-        time: startTime,
-        repeat_weekly: false
-      };
-
-      const res = await apiFetch(`/api/tutors/${student.tutor_id}/check_and_book/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await res.json();
-
-      if (data.status === "ok") {
-        setShowBookingModal(false);
-        setSlotOptions(null);
-        loadCalendar();
-      }
+    const payload = {
+      student_id: student.id,
+      date: slotOptions.date,
+      time: startTime,
+      repeat_weekly: false
     };
+
+    const res = await apiFetch(`/api/tutors/${student.tutor_id}/check_and_book/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+
+    if (data.status === "ok") {
+      setShowBookingModal(false);
+      setSlotOptions(null);
+      loadCalendar();
+    }
+  };
+
+  const handleDeleteBooking = async (bookingId: number) => {
+    await apiFetch(`/api/tutors/${tutorId}/delete_booking/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ booking_id: bookingId })
+    });
+
+    loadCalendar();
+  };
+
 
   if (!student) {
     return (
@@ -334,6 +327,7 @@ export function StudentHomePage() {
             week={week}
             mode="student"
             onSelectSlot={handleSelectSlot}
+            onDeleteBooking={handleDeleteBooking}
           />
         )}
 
