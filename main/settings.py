@@ -6,6 +6,10 @@ load_dotenv()
 
 from datetime import timedelta
 
+SECURE_SSL_REDIRECT = False
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
@@ -25,9 +29,12 @@ DEBUG = os.getenv("DEBUG", "true").lower() == "true"
 
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
 
-ALLOWED_HOSTS = [
-    ".railway.app",
-]
+# ALLOWED_HOSTS = [
+#     ".railway.app",
+# ]
+
+ALLOWED_HOSTS = ["*",]
+
 
 CUSTOM_DOMAIN = os.getenv("CUSTOM_DOMAIN")
 if CUSTOM_DOMAIN:
@@ -154,7 +161,11 @@ FRONTEND_URL = os.getenv("FRONTEND_URL")          # e.g. https://myfrontend.rail
 CUSTOM_FRONTEND = os.getenv("CUSTOM_FRONTEND")    # e.g. https://app.yourtutorbrand.com
 
 CORS_ALLOWED_ORIGINS = []
-CSRF_TRUSTED_ORIGINS = []
+CSRF_TRUSTED_ORIGINS = [
+    "https://web-production-f1310.up.railway.app",
+    "https://*.railway.app",
+]
+
 
 # Local dev defaults
 CORS_ALLOWED_ORIGINS.extend([
