@@ -2,6 +2,8 @@ import { Link } from "react-router-dom";
 import { apiFetch, apiFetchJson } from "../../utils/apiFetch"
 
 
+
+
 export function Layout({ children }: { children: React.ReactNode }) {
 
   const storedUser = localStorage.getItem("user");
@@ -11,6 +13,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
     // User is not logged in
     return <div>{children}</div>;
   }
+
+  useEffect(() => {
+    const stored = localStorage.getItem("user");
+    if (!stored) {
+      window.location.href = "/login";
+      return;
+    }
+
+    const user = JSON.parse(stored);
+
+    if (user.role === "tutor") {
+      window.location.href = `/tutor/${user.id}`;
+    } else if (user.role === "student") {
+      window.location.href = `/student/${user.id}`;
+    } else if (user.role === "parent") {
+      window.location.href = `/parent/${user.id}`;
+    } else if (user.role === "admin") {
+      window.location.href = `/admin`;
+    }
+  }, []);
+
 
   return (
     <>
