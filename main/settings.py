@@ -3,6 +3,8 @@ from pathlib import Path
 from urllib.parse import urlparse
 from dotenv import load_dotenv
 load_dotenv()
+import dj_database_url
+
 
 from datetime import timedelta
 
@@ -108,24 +110,23 @@ TEMPLATES = [
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if DATABASE_URL:
-    parsed = urlparse(DATABASE_URL)
+    # Production-style database (local or Railway)
     DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": parsed.path[1:],
-            "USER": parsed.username,
-            "PASSWORD": parsed.password,
-            "HOST": parsed.hostname,
-            "PORT": parsed.port,
-        }
+        "default": dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=True,
+        )
     }
 else:
+    # Local development fallback
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": BASE_DIR / "db.sqlite3",
         }
     }
+
 
 # ---------------------------------------------------------
 # Authentication
@@ -160,7 +161,11 @@ CORS_ALLOW_CREDENTIALS = True
 FRONTEND_URL = os.getenv("FRONTEND_URL")          # e.g. https://myfrontend.railway.app
 CUSTOM_FRONTEND = os.getenv("CUSTOM_FRONTEND")    # e.g. https://app.yourtutorbrand.com
 
-CORS_ALLOWED_ORIGINS = []
+CORS_ALLOWED_ORIGINS = [
+    # "https://<your-vercel-project>.vercel.app"
+    "http://localhost:3000"
+
+]
 CSRF_TRUSTED_ORIGINS = [
     "https://web-production-f1310.up.railway.app",
     "https://*.railway.app",
