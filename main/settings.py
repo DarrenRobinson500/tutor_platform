@@ -162,13 +162,16 @@ FRONTEND_URL = os.getenv("FRONTEND_URL")          # e.g. https://myfrontend.rail
 CUSTOM_FRONTEND = os.getenv("CUSTOM_FRONTEND")    # e.g. https://app.yourtutorbrand.com
 
 CORS_ALLOWED_ORIGINS = [
-    # "https://<your-vercel-project>.vercel.app"
-    "http://localhost:3000"
+    FRONTEND_URL,
+    "http://localhost:3000",
+    "https://tutor-frontend-peach.vercel.app/",
 
 ]
 CSRF_TRUSTED_ORIGINS = [
     "https://web-production-f1310.up.railway.app",
     "https://*.railway.app",
+    "https://tutor-frontend-peach.vercel.app/",
+    FRONTEND_URL,
 ]
 
 
