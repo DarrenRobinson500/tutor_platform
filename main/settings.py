@@ -164,13 +164,13 @@ CUSTOM_FRONTEND = os.getenv("CUSTOM_FRONTEND")    # e.g. https://app.yourtutorbr
 CORS_ALLOWED_ORIGINS = [
     FRONTEND_URL,
     "http://localhost:3000",
-    "https://tutor-frontend-peach.vercel.app/",
+    "https://tutor-frontend-peach.vercel.app",
 
 ]
 CSRF_TRUSTED_ORIGINS = [
     "https://web-production-f1310.up.railway.app",
     "https://*.railway.app",
-    "https://tutor-frontend-peach.vercel.app/",
+    "https://tutor-frontend-peach.vercel.app",
     FRONTEND_URL,
 ]
 
@@ -180,15 +180,14 @@ CORS_ALLOWED_ORIGINS.extend([
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     os.getenv("FRONTEND_URL"),
-
 ])
+
 CSRF_TRUSTED_ORIGINS.extend([
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
     os.getenv("FRONTEND_URL"),
-
 ])
 
 # Production domains
