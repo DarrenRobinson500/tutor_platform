@@ -94,10 +94,10 @@ from openai import OpenAI
 
 # api_key=os.environ["OPENAI_API_KEY"]
 chat_key=os.environ["CHAT_KEY"]
-print("Chat key:", chat_key)
+# print("Chat key:", chat_key)
 
 client = OpenAI(api_key=chat_key)
-print("Client:", client)
+# print("Client:", client)
 
 def generate_template_content(skill_description: str) -> dict:
     prompt = f"You are an expert NSW mathematics tutor. Create a structured practice template for the skill: '{skill_description}'" + PROMPT_INSTRUCTIONS

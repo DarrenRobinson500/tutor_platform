@@ -274,7 +274,7 @@ class SkillViewSet(viewsets.ModelViewSet):
 
 # -------------- TUTOR ---------------- #
 
-class TutorViewSet(viewsets.ReadOnlyModelViewSet):
+class TutorViewSet(viewsets.ModelViewSet):
     queryset = User.objects.filter(role="tutor").order_by("username")
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]

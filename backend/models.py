@@ -75,17 +75,16 @@ class TutorStudent(models.Model):
 class TutorProfile(models.Model):
     # Branding
     tutor = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="tutor")
-    logo = models.ImageField(upload_to='branding/')
-    color_scheme = models.CharField(max_length=20)
-    welcome_message = models.TextField()
+    logo = models.ImageField(upload_to='branding/', null=True, blank=True)
+    color_scheme = models.CharField(max_length=20, null=True, blank=True)
+    welcome_message = models.TextField(null=True, blank=True)
+    token = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     # Bookings
     default_session_minutes = models.IntegerField(default=60)
     buffer_minutes = models.IntegerField(default=15)
 
-    # QR codes
-    token = models.CharField(max_length=64, unique=True)
-    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self): return f"Profile {self.tutor} {self.id}"
 
