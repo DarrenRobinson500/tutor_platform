@@ -1,0 +1,79 @@
+    @action(detail=True, methods=["post"], url_path="check_and_book")
+    def check_and_book(self, request, pk=None):
+        print("Check and book")
+        user = self.get_object()
+        tutor = user.get_tutor_profile()
+
+        student_id = request.data["student_id"]
+        student = User.objects.get(pk=student_id)
+        date = request.data["date"]
+        time = request.data["time"]
+        repeat = request.data.get("repeat_weekly", False)
+
+        # Parse date + time
+        date_dt = datetime.fromisoformat(date).date()
+        start_t = datetime.strptime(time, "%H:%M").time()
+
+        # Compute end time
+        session_minutes = tutor.default_session_minutes
+        end_t = (datetime.combine(date_dt, start_t) +
+                 timedelta(minutes=session_minutes)).time()
+
+        weeks = 12 if repeat else 1
+
+        created = 0
+        results = []  # ← collect success/failure for each week
+
+        for i in range(weeks):
+            this_date = date_dt + timedelta(weeks=i)
+
+            # Check availability using your existing logic
+            status = tutor.appointment_status(this_date, start_t)
+
+            if status != "available":
+                results.append({
+                    "week": i + 1,
+                    "date": str(this_date),
+                    "time": start_t.strftime("%H:%M"),
+                    "success": False,
+                    "reason": status,
+                })
+                continue  # ← keep going to next week
+
+            # Build aware datetimes
+            naive_start = datetime.combine(this_date, start_t)
+            naive_end = datetime.combine(this_date, end_t)
+            start_dt = make_aware(naive_start)
+            end_dt = make_aware(naive_end)
+
+            try:
+                Appointment.objects.create(
+                    tutor=user,
+                    student_id=student_id,
+                    start_datetime=start_dt,
+                    end_datetime=end_dt,
+                    status="booked",
+                    created_by=student,
+                )
+                created += 1
+                results.append({
+                    "week": i + 1,
+                    "date": str(this_date),
+                    "time": start_t.strftime("%H:%M"),
+                    "success": True,
+                })
+            except Exception as e:
+                # Database or validation error
+                results.append({
+                    "week": i + 1,
+                    "date": str(this_date),
+                    "time": start_t.strftime("%H:%M"),
+                    "success": False,
+                    "reason": str(e),
+                })
+
+        return Response({
+            "status": "ok" if created > 0 else "error",
+            "created": created,
+            "results": results,
+        })

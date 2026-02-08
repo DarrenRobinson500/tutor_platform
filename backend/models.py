@@ -16,6 +16,14 @@ tz = pytz.timezone("Australia/Sydney")
 # from django_cte import With
 # from django.db.models.expressions import RawSQL
 
+def print_segments(segments):
+    for day in segments:
+        for seg in day['segments']:
+            # print(seg)
+            if seg["type"] != "outside":
+                print(f"{seg['time'].strftime('%H:%M')} — {seg['type']}")
+
+
 
 class User(AbstractUser):
     ROLE_CHOICES = [
@@ -106,45 +114,6 @@ class TutorProfile(models.Model):
             if window.start_time <= time_obj < window.end_time:
                 return "available"
         return "outside"
-    #
-    # def generate_weekly_slots_old(self, week_start, student=None, tutor_view=False):
-    #     session_td = timedelta(minutes=self.default_session_minutes)
-    #     week = []
-    #
-    #     for i in range(7):
-    #         day_date = week_start + timedelta(days=i)
-    #         week.append({"date": day_date, "bookable_slots": [], "segments": []})
-    #
-    #     for day in week:
-    #         d = day["date"]
-    #
-    #         for minute in range(0, 24 * 60, 15):
-    #             t = (datetime.min + timedelta(minutes=minute)).time()
-    #             status = self.appointment_status(d, t, student)
-    #             segment = {"time": t, "type": status}
-    #             if status in ["booked_other", "booked_self"]:
-    #                 appt = Appointment.objects.filter(
-    #                     tutor=self.tutor,
-    #                     start_datetime__lte=make_aware(datetime.combine(d, t)),
-    #                     end_datetime__gt=make_aware(datetime.combine(d, t))
-    #                 ).select_related("student").first()
-    #
-    #                 if appt:
-    #                     segment["studentName"] = appt.student.first_name
-    #                     segment["bookingId"] = appt.id
-    #
-    #             day["segments"].append(segment)
-    #
-    #             if status != "available": continue
-    #
-    #             end_dt = datetime.combine(d, t) + session_td
-    #             end_t = end_dt.time()
-    #             end_status = self.appointment_status(d, end_t, student)
-    #
-    #             if end_status == "available":
-    #                 day["bookable_slots"].append(t)
-    #
-    #     return week
 
     def appointment_status_fast(
         self,
@@ -155,12 +124,6 @@ class TutorProfile(models.Model):
         appointments_by_date,
         availability_by_weekday,
     ):
-        """
-        Returns (status, appt_or_none), where status is one of:
-        'blocked', 'booked_self', 'booked_other', 'available', 'outside'
-        and appt_or_none is the Appointment instance if booked, else None.
-        """
-
         # 1. Blocked day
         if date_obj in blocked_days:
             return "blocked", None
@@ -211,8 +174,6 @@ class TutorProfile(models.Model):
         # Group appointments by date for fast lookup
         appointments_by_date = defaultdict(list)
         for appt in appointments:
-            # We care about each date the appointment touches; simplest is to
-            # group by the date of the start, which matches your 1‑day slots.
             date_key = appt.start_datetime.date()
             appointments_by_date[date_key].append(appt)
 
@@ -292,8 +253,8 @@ class TutorProfile(models.Model):
                 if end_status == "available":
                     day["bookable_slots"].append(t)
 
-        # print("Generate Slots (week):")
-        # print(week)
+        print("Generate Slots (week):")
+        # print_segments(week)
 
         return week
 

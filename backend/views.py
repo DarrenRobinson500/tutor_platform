@@ -5,6 +5,8 @@ from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.contrib.auth import authenticate, login, logout
+from datetime import datetime, timedelta, time as dtime
+
 
 from .validation import *
 from .rendering import *
@@ -426,12 +428,9 @@ class TutorViewSet(viewsets.ModelViewSet):
 
         student_id = request.data["student_id"]
         student = User.objects.get(pk=student_id)
-        date = request.data["date"]  # "2026-02-01"
-        time = request.data["time"]  # "09:00"
+        date = request.data["date"]
+        time = request.data["time"]
         repeat = request.data.get("repeat_weekly", False)
-
-        print("Check and book (user, tutor, studentid, date, time, repeat)",
-              user, tutor, student_id, date, time, repeat)
 
         # Parse date + time
         date_dt = datetime.fromisoformat(date).date()
@@ -439,27 +438,37 @@ class TutorViewSet(viewsets.ModelViewSet):
 
         # Compute end time
         session_minutes = tutor.default_session_minutes
-        end_t = (datetime.combine(date_dt, start_t) + timedelta(minutes=session_minutes)).time()
+        end_t = (datetime.combine(date_dt, start_t) +
+                 timedelta(minutes=session_minutes)).time()
 
-        print("Check and book (date_dt, start_t, end_t)", date_dt, start_t, end_t)
-
-        # Weekly repetition
         weeks = 12 if repeat else 1
+
         created = 0
+        results = []  # ← collect success/failure for each week
 
         for i in range(weeks):
             this_date = date_dt + timedelta(weeks=i)
+            print("Check and Book:", this_date)
+            # Check availability using your existing logic
+            status = tutor.appointment_status(this_date, start_t)
 
-            # Build naive datetimes
+            if status != "available":
+                results.append({
+                    "week": i + 1,
+                    "date": str(this_date),
+                    "time": start_t.strftime("%H:%M"),
+                    "success": False,
+                    "reason": status,
+                })
+                continue  # ← keep going to next week
+
+            # Build aware datetimes
             naive_start = datetime.combine(this_date, start_t)
             naive_end = datetime.combine(this_date, end_t)
-
-            # Localize to Sydney timezone
             start_dt = make_aware(naive_start)
             end_dt = make_aware(naive_end)
 
-            # Availability check
-            if tutor.is_available(this_date, start_t, end_t):
+            try:
                 Appointment.objects.create(
                     tutor=user,
                     student_id=student_id,
@@ -469,10 +478,26 @@ class TutorViewSet(viewsets.ModelViewSet):
                     created_by=student,
                 )
                 created += 1
+                results.append({
+                    "week": i + 1,
+                    "date": str(this_date),
+                    "time": start_t.strftime("%H:%M"),
+                    "success": True,
+                })
+            except Exception as e:
+                # Database or validation error
+                results.append({
+                    "week": i + 1,
+                    "date": str(this_date),
+                    "time": start_t.strftime("%H:%M"),
+                    "success": False,
+                    "reason": str(e),
+                })
 
         return Response({
-            "status": "ok",
-            "message": f"Appointment booked ({created} sessions)"
+            "status": "ok" if created > 0 else "error",
+            "created": created,
+            "results": results,
         })
 
     @action(detail=True, methods=["post"], url_path="delete_booking")

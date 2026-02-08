@@ -165,12 +165,13 @@ CORS_ALLOWED_ORIGINS = [
     FRONTEND_URL,
     "http://localhost:3000",
     "https://tutor-frontend-peach.vercel.app",
-
+    "https://greenlearning.vercel.app",
 ]
 CSRF_TRUSTED_ORIGINS = [
     "https://web-production-f1310.up.railway.app",
     "https://*.railway.app",
     "https://tutor-frontend-peach.vercel.app",
+    "https://greenlearning.vercel.app",
     FRONTEND_URL,
 ]
 
@@ -236,6 +237,10 @@ if not DEBUG:
     SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
+
+CSRF_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SAMESITE = "None"
+
 
 # ---------------------------------------------------------
 # Logging (Railway reads stdout)
