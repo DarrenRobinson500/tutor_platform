@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import *
 
 admin.site.register([User, ])
-admin.site.register([TutorAvailability, TutorProfile, TutorStudent])
+admin.site.register([TutorAvailability, TutorProfile, TutorStudent, StudentProfile])
 admin.site.register([Skill, Template, Note])
 
 @admin.register(Appointment)

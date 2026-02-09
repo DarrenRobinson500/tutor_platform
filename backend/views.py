@@ -20,6 +20,79 @@ from .utilities import *
 from .serializers import *
 from .tutor_calendar import *
 
+GRADES = ["K", 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+MATRIX_CACHE = None
+
+# views.py (or a separate utils/skills_matrix.py file)
+
+# from .models import Skill
+
+GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+
+def flatten_skills(top_level_skills):
+    flat = []
+
+    def walk(skill, depth):
+        flat.append((skill, depth))
+        for child in skill.children.all().order_by("id"):
+            walk(child, depth + 1)
+    for root in top_level_skills:
+        walk(root, 0)
+
+    return flat
+
+
+
+def build_matrix():
+    top_level = Skill.objects.filter(parent=None).order_by("id")
+    flat = flatten_skills(top_level)
+
+    rows = []
+    for skill, depth in flat:
+        # print("Build matrix:", skill)
+        grade_list = [str(g) for g in skill.get_grade_list()]
+        cells = {}
+        for g in GRADES:
+            g_str = str(g)
+            colour = "covered" if g_str in grade_list else "empty"
+            count = 0
+            # count = skill.template_count()
+            cells[g_str] = {"colour": colour, "count": count}
+
+        rows.append({
+            "id": skill.id,
+            "code": skill.code,
+            "description": skill.description,
+            "depth": depth,
+            "cells": cells
+        })
+
+    return {
+        "grades": GRADES,
+        "skills": rows
+    }
+
+
+def get_matrix_cache():
+    global MATRIX_CACHE
+    if MATRIX_CACHE is None:
+        MATRIX_CACHE = build_matrix()   # heavy work
+    return MATRIX_CACHE
+
+# get_matrix_cache()
+# print("Matrix cache:")
+# print(MATRIX_CACHE)
+
+
+def flatten_skills(skills, depth=0):
+    flat = []
+    for skill in skills:
+        flat.append((skill, depth))
+        children = skill.children.all().order_by("id")
+        flat.extend(flatten_skills(children, depth + 1))
+    return flat
+
 class AuthViewSet(viewsets.ViewSet):
     permission_classes = [AllowAny]
 
@@ -273,6 +346,10 @@ class SkillViewSet(viewsets.ModelViewSet):
 
         return Response({"ok": True})
 
+    @action(detail=False, methods=["get"], permission_classes=[AllowAny])
+    def matrix(self, request):
+        return Response(get_matrix_cache())
+
 
 # -------------- TUTOR ---------------- #
 
@@ -300,9 +377,25 @@ class TutorViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"])
     def students(self, request, pk=None):
         tutor = self.get_object()
-        students = User.objects.filter(tutors__tutor=tutor)
-        serializer = UserSerializer(students, many=True)
-        return Response(serializer.data)
+
+        # Get all students linked to this tutor
+        links = TutorStudent.objects.filter(tutor=tutor).select_related("student__student_profile")
+        student_users = [link.student for link in links]
+
+        data = []
+        for student_user in student_users:
+            student_profile = student_user.get_student_profile()
+
+            data.append({
+                "id": student_user.id,
+                "first_name": student_user.first_name,
+                "last_name": student_user.last_name,
+                "email": student_user.email,
+                "year_level": student_profile.year_level,
+                "area_of_study": student_profile.area_of_study,
+            })
+
+        return Response(data)
 
     @action(detail=False, methods=["post"])
     def create_tutor(self, request):
@@ -517,26 +610,45 @@ class TutorViewSet(viewsets.ModelViewSet):
 
 # -------------- STUDENT ---------------- #
 
-class StudentViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = User.objects.filter(role="student").order_by("username")
-    serializer_class = UserSerializer
+class StudentViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.filter(role="student").select_related("student_profile")
+    serializer_class = StudentSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        user = super().get_object()
+        profile = user.get_student_profile()
+        return profile
 
     @action(detail=True, methods=["get"])
     def home(self, request, pk=None):
-        user = self.get_object()
-        tutor = user.get_tutor()
-        print("Student Home (user, tutor, tutor_id):", user, tutor, tutor.id if tutor else None)
-        return Response({
+        student_profile = self.get_object()
+        user = student_profile.user
+        tutor_user = user.get_tutor()
+        tutor_name = None
+        tutor_id = None
+        if tutor_user:
+            tutor_name = tutor_user.get_full_name() or tutor_user.username
+            tutor_id = tutor_user.id
+
+        # Build the flattened response
+        data = {
             "id": user.id,
             "name": user.get_full_name() or user.username,
             "email": user.email,
-            "tutor_id": tutor.id if tutor else None,
-            "tutor_name": tutor.get_full_name() or tutor.username if tutor else None,
-        })
+            "tutor_id": tutor_id,
+            "tutor_name": tutor_name,
+            "year_level": student_profile.year_level,
+            "area_of_study": student_profile.area_of_study,
+        }
+
+        return Response(data)
 
     @action(detail=False, methods=["post"])
     def create_student(self, request):
+        """
+        Create a new student User + StudentProfile.
+        """
         name = request.data.get("name")
         email = request.data.get("email")
         password = request.data.get("password") or User.objects.make_random_password()
@@ -545,6 +657,7 @@ class StudentViewSet(viewsets.ReadOnlyModelViewSet):
         if not name or not email:
             return Response({"error": "Name and email are required"}, status=400)
 
+        # Create the User
         student = User.objects.create(
             username=email,
             email=email,
@@ -553,6 +666,10 @@ class StudentViewSet(viewsets.ReadOnlyModelViewSet):
             password=make_password(password),
         )
 
+        # Create the StudentProfile
+        StudentProfile.objects.create(user=student)
+
+        # Link to tutor if provided
         if tutor_id:
             TutorStudent.objects.create(
                 tutor_id=tutor_id,
@@ -563,9 +680,8 @@ class StudentViewSet(viewsets.ReadOnlyModelViewSet):
             "id": student.id,
             "name": student.first_name,
             "email": student.email,
-            "password": password,  # shown once so admin can give it to the student
+            "password": password,
             "linked_to_tutor": tutor_id,
-
         })
 
 class NoteViewSet(viewsets.ModelViewSet):

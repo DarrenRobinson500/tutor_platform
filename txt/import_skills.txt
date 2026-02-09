@@ -2,30 +2,23 @@ import json
 import os
 from backend.models import Skill
 
-
 def import_skill_tree(node, parent=None):
     """Recursively create Skill objects from a nested JSON structure."""
-
-    # Convert years_practised list → comma-separated string for the model
-    years = node.get("years_practised", [])
-    grades_str = ",".join(str(y) for y in years)
-    print(node["description"])
-
     skill = Skill.objects.create(
         parent=parent,
         code=node["code"],
         description=node["description"],
-        grades=grades_str,
+        grade_level=node.get("grade_level", 0),
+        order_index=node.get("order_index", 0),
     )
 
-    # Recurse into children
     for child in node.get("children", []):
         import_skill_tree(child, parent=skill)
 
 
 def import_syllabus():
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    json_path = os.path.join(base_dir, "nsw_math_k10_years.json")
+    json_path = os.path.join(base_dir, "nsw_math_k10.json")
 
     # Load the JSON file
     with open(json_path, "r", encoding="utf-8") as f:

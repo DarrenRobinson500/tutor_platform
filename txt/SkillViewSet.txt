@@ -1,0 +1,85 @@
+class SkillViewSet(viewsets.ModelViewSet):
+    queryset = Skill.objects.all().order_by("order_index")
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action in ["retrieve", "children"]:
+            return SkillDetailSerializer
+        return SkillSerializer
+
+    @action(detail=True, methods=["get"])
+    def children(self, request, pk=None):
+        parent = self.get_object()
+        children = parent.children.order_by("order_index")
+        serializer = SkillSerializer(children, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["get"])
+    def direct_templates(self, request, pk=None):
+        skill = self.get_object()
+        templates = skill.direct_templates()
+        serializer = TemplateSerializer(templates, many=True)
+        return Response(serializer.data)
+
+    def list(self, request, *args, **kwargs):
+        parent_id = request.query_params.get("parent")
+        if parent_id:
+            skills = Skill.objects.filter(parent_id=parent_id).order_by("order_index")
+        else:
+            skills = Skill.objects.filter(parent__isnull=True).order_by("order_index")
+
+        serializer = SkillSerializer(skills, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["get"])
+    def parents(self, request, pk=None):
+        skill = self.get_object()
+        chain = []
+        current = skill.parent
+
+        while current:
+            chain.append(current)
+            current = current.parent
+
+        # reverse so it goes root → child → current
+        chain.reverse()
+
+        serializer = SkillSerializer(chain, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["post"])
+    def load_syllabus(self, request):
+        # Safety: prevent accidental double-import
+        from backend.models import Skill
+        if Skill.objects.exists():
+            return Response({"error": "Skills already exist. Clear them first."}, status=400)
+
+        import_syllabus()
+        return Response({"status": "Syllabus loaded successfully"})
+
+
+    def destroy(self, request, *args, **kwargs):
+        skill = self.get_object()
+
+        if skill.children.exists():
+            return Response(
+                {"error": "Cannot delete a skill that has sub-skills."},
+                status=400
+            )
+
+        return super().destroy(request, *args, **kwargs)
+
+    @action(detail=True, methods=["post"])
+    def diagram(self, request, pk=None):
+        template = self.get_object()
+        svg = request.data.get("svg")
+
+        if not svg:
+            return Response({"error": "SVG missing"}, status=400)
+
+        diagram, _ = TemplateDiagram.objects.update_or_create(
+            template=template,
+            defaults={"svg_spec": svg}
+        )
+
+        return Response({"ok": True})

@@ -36,6 +36,13 @@ class User(AbstractUser):
     default_session_minutes = models.IntegerField(default=60)
     buffer_minutes = models.IntegerField(default=15)
 
+    def get_student_profile(self):
+        if self.role == "student":
+            profile = StudentProfile.objects.filter(user=self).first()
+        if not profile and self.role == "student":
+            profile = StudentProfile.objects.create(user=self)
+        return profile
+
     def get_tutor(self):
         if self.role == "tutor": return self
         if self.role == "student":
@@ -46,6 +53,7 @@ class User(AbstractUser):
             if child_link: tutor_link = TutorStudent.objects.filter(student=child_link.child).first()
             if tutor_link: return TutorProfile.objects.filter(tutor=tutor_link.tutor).first()
         return None
+
 
     def get_tutor_profile(user):
         if user.role == "tutor": return TutorProfile.objects.filter(tutor=user).first()
@@ -79,6 +87,12 @@ class TutorStudent(models.Model):
         unique_together = ("tutor", "student")
 
     def __str__(self): return f"Student: {self.student} Tutor: {self.tutor.id} Student: {self.student.id}"
+
+class StudentProfile(models.Model):
+    user = models.OneToOneField(django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="student_profile")
+    year_level = models.CharField(max_length=50, blank=True, null=True)
+    area_of_study = models.TextField(blank=True, null=True)
+    def __str__(self): return f"Profile {self.user} {self.id}"
 
 class TutorProfile(models.Model):
     # Branding
@@ -272,7 +286,7 @@ class Skill(models.Model):
     parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, related_name="children")
     code = models.CharField(max_length=100)
     description = models.TextField()
-    grade_level = models.IntegerField()
+    grades = models.CharField(max_length=50, null=True, blank=True)
     order_index = models.IntegerField(default=0)
 
     def __str__(self):
@@ -280,6 +294,19 @@ class Skill(models.Model):
 
     def direct_templates(self):
         return Template.objects.filter(skill=self)
+
+    def get_grade_list(self):
+        raw = [g.strip() for g in self.grades.split(",") if g.strip()]
+        parsed = []
+        for g in raw:
+            if g.upper() == "K":
+                parsed.append("K")
+            else:
+                try:
+                    parsed.append(int(g))
+                except ValueError:
+                    parsed.append(g)  # fallback for unexpected values
+        return parsed
 
     def template_count(self):
         # 1. Collect all descendant skill IDs (including self)

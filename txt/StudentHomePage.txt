@@ -1,4 +1,5 @@
-import { useParams } from "react-router-dom";
+/* eslint-disable react-hooks/exhaustive-deps */
+import { useParams, useNavigate } from "react-router-dom";
 import React, { useState, useEffect } from "react";
 import { WeeklyCalendar } from "./components/WeeklyCalendar";
 import { Layout } from "./components/Layout";
@@ -59,6 +60,10 @@ export function StudentHomePage() {
   const [manualMessage, setManualMessage] = useState("");
   const [weekStart, setWeekStart] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const navigate = useNavigate();
+  const { studentId } = useParams();
+
   const [slotOptions, setSlotOptions] = useState<{
     date: string;
     blockStart: string;
@@ -77,6 +82,8 @@ export function StudentHomePage() {
       return;
     }
 
+    setBookingLoading(true); // show spinner
+
     const payload = {
       student_id: student.id,
       date: manualDate,
@@ -84,15 +91,21 @@ export function StudentHomePage() {
       repeat_weekly: repeatWeekly,
     };
 
-    const res = await apiFetch(`/api/tutors/${tutorId}/check_and_book/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    try {
+      const res = await apiFetch(`/api/tutors/${tutorId}/check_and_book/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    const data = await res.json();
-    handleBookingResponse(data);
+      const data = await res.json();
+      handleBookingResponse(data);
+
+    } finally {
+      setBookingLoading(false); // hide spinner
+    }
   };
+
 
   // -----------------------------
   // Unified booking response handler
@@ -221,6 +234,8 @@ export function StudentHomePage() {
   const handleBook = async (startTime: string) => {
     if (!slotOptions) return;
 
+    setBookingLoading(true);   // ⭐ show spinner
+
     const payload = {
       student_id: student.id,
       date: slotOptions.date,
@@ -228,21 +243,25 @@ export function StudentHomePage() {
       repeat_weekly: false,
     };
 
-    const res = await apiFetch(
-      `/api/tutors/${student.tutor_id}/check_and_book/`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }
-    );
+    try {
+      const res = await apiFetch(
+        `/api/tutors/${student.tutor_id}/check_and_book/`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
 
-    const data = await res.json();
-    handleBookingResponse(data);
-
-    setShowBookingModal(false);
-    setSlotOptions(null);
+      const data = await res.json();
+      handleBookingResponse(data);
+    } finally {
+      setBookingLoading(false);  // ⭐ hide spinner
+      setShowBookingModal(false);
+      setSlotOptions(null);
+    }
   };
+
 
   // -----------------------------
   // Delete booking
@@ -271,12 +290,33 @@ export function StudentHomePage() {
   return (
     <Layout>
       <div className="container mt-4">
-        <h1>Welcome back {student.name} ({student.id})</h1>
-        <p>{student.email}</p>
+        <h1>Welcome back {student.name}</h1>
+        <p><strong>Email:</strong> {student.email}<br/>
+        <strong>Year Level:</strong> {student.year_level || "Not set"}<br/>
+        <strong>Area of Study:</strong> {student.area_of_study || "Not set"}
+        </p>
+        <button
+          className="btn btn-outline-primary"
+          onClick={() => navigate(`/students/${id}/edit`)}
+        >
+          Edit My Details
+        </button>
+
 
         {/* ⭐ Message banner */}
         {manualMessage && (
           <div className="alert alert-info mt-3">{manualMessage}</div>
+        )}
+
+        {bookingLoading && (
+          <div className="text-center my-3">
+            <div className="spinner-border text-success" role="status">
+              <span className="visually-hidden">Booking session…</span>
+            </div>
+            <div style={{ marginTop: "0.5rem", fontWeight: 500 }}>
+              Booking session…
+            </div>
+          </div>
         )}
 
         {/* Manual booking */}
@@ -314,9 +354,14 @@ export function StudentHomePage() {
             </label>
           </div>
 
-          <button className="btn btn-outline-primary" onClick={handleManualBooking}>
-            Book Session
-          </button>
+        <button
+          className="btn btn-outline-primary"
+          onClick={handleManualBooking}
+          disabled={bookingLoading}
+        >
+          {bookingLoading ? "Booking…" : "Book Session"}
+        </button>
+
         </div>
 
         <br />
