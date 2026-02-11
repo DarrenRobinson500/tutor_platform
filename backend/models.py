@@ -408,7 +408,7 @@ class Template(models.Model):
     last_validated_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.name} (v{self.version})"
+        return f"{self.subject} (v{self.version})"
 
 class TemplateDiagram(models.Model):
     template = models.ForeignKey(Template, on_delete=models.CASCADE)

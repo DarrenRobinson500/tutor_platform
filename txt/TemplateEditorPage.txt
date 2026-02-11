@@ -1,4 +1,4 @@
-import yaml from "js-yaml";
+// import yaml from "js-yaml";
 import debounce from "lodash.debounce";
 
 import { useEffect, useState, useRef } from "react";
@@ -7,15 +7,16 @@ import { TemplateMetadataBar } from "./components/TemplateMetadataBar";
 import { EditorPanel } from "./components/EditorPanel";
 import { ValuesPanel } from "./components/ValuesPanel";
 import { PreviewPanel } from "./components/PreviewPanel";
-import { LogsPanel } from "./components/LogsPanel";
+// import { LogsPanel } from "./components/LogsPanel";
 import { Layout } from "./components/Layout";
-import { DiagramEditor } from "./components/DiagramEditor";
-import { renderDiagramFromCode } from "../diagram/engine";
+// import { DiagramEditor } from "./components/DiagramEditor";
+// import { renderDiagramFromCode } from "../diagram/engine";
+import { apiFetch } from "../utils/apiFetch"
 
 // API hooks
 import { useTemplateApi } from "../api/useTemplateApi";
 import { useValidationApi } from "../api/useValidationApi";
-import { usePreviewApi } from "../api/usePreviewApi";
+// import { usePreviewApi } from "../api/usePreviewApi";
 import type { TemplateMetadata } from "../types/TemplateMetadata";
 
 interface PreviewResponse {
@@ -28,35 +29,61 @@ interface PreviewResponse {
   substituted_yaml: string;
 }
 
+
 export function TemplateEditorPage() {
+  const emptyMetadata = {
+    id: null,
+    name: "",
+    description: "",
+    subject: "",
+    topic: "",
+    subtopic: "",
+    difficulty: "",
+    tags: [],
+    curriculum: [],
+    status: "draft",
+    version: 1,
+    skill: null,
+  };
+
   const navigate = useNavigate();
   const params = useParams();
   const { id } = params;
   const [metadata, setMetadata] = useState<TemplateMetadata>(emptyMetadata);
-  const isNew = id === "new";
+//   const isNew = id === "new";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isSaving, setIsSaving] = useState(false);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [saveError, setSaveError] = useState<string | null>(null);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [content, setContent] = useState<string>("");
   const [validationResult, setValidationResult] = useState<any>(null);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [previewResult, setPreviewResult] = useState<any>(null);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { getTemplate, saveTemplate } = useTemplateApi();
   const { validateTemplate } = useValidationApi();
-  const { previewTemplate } = usePreviewApi();
+//   const { previewTemplate } = usePreviewApi();
 
-  const emptyMetadata: TemplateMetadata = {
-    id: undefined,
-    name: "",
-    subject: "",
-    topic: "",
-    difficulty: "",
-    tags: [],
-    curriculum: "",
-    status: "",
-    version: "",
-    skill: undefined
-  };
+  function buildMetadataFromTemplate(tpl: any): TemplateMetadata {
+    return {
+      id: tpl.id ?? null,
+      name: tpl.name ?? "",
+      description: tpl.description ?? "",
+      subject: tpl.subject ?? "",
+      topic: tpl.topic ?? "",
+      subtopic: tpl.subtopic ?? "",
+      difficulty: tpl.difficulty ?? "",
+      tags: tpl.tags ?? [],
+      curriculum: tpl.curriculum ?? [],
+      status: tpl.status ?? "draft",
+      version: tpl.version ?? 1,
+      skill: tpl.skill ?? null,
+    };
+  }
 
   // Debounced function
   const debouncedPreview = useRef(
@@ -75,15 +102,14 @@ export function TemplateEditorPage() {
     }, 400)
   ).current;
 
-
-  function extractDiagramSvg(yamlText: string): string {
-    try {
-      const parsed: any = yaml.load(yamlText);
-      return parsed?.diagram?.svg || "";
-    } catch {
-      return "";
-    }
-  }
+//   function extractDiagramSvg(yamlText: string): string {
+//     try {
+//       const parsed: any = yaml.load(yamlText);
+//       return parsed?.diagram?.svg || "";
+//     } catch {
+//       return "";
+//     }
+//   }
 
 // function updateYamlWithDiagram(originalYaml: string, newSvg: string, newCode: string): string {
 //   let parsed: any;
@@ -106,41 +132,30 @@ export function TemplateEditorPage() {
 // }
 
 
-  useEffect(() => {
-    async function load() {
-      if (!id) return;
+useEffect(() => {
+  async function load() {
+    if (!id) return;
 
-      const tpl = await getTemplate(id);
-      if (!tpl) return;
+    const tpl = await getTemplate(id);
+    if (!tpl) return;
 
-      // 1. Load YAML into the editor
-      setContent(tpl.content);
+    setContent(tpl.content);
+    setMetadata(buildMetadataFromTemplate(tpl));
 
-      // 2. Load metadata
-      setMetadata({
-        name: tpl.name || "",
-        subject: tpl.subject || "",
-        topic: tpl.topic || "",
-        difficulty: tpl.difficulty || "",
-        tags: tpl.tags || [],
-        curriculum: tpl.curriculum || "",
-        status: tpl.status || "",
-        version: tpl.version || "",
-        skill: tpl.skill || null,
-      });
+    const res = await apiFetch("/api/templates/preview/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: tpl.content }),
+    });
 
-      // 3. Generate initial preview
-      const res = await apiFetch("/api/templates/preview/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: tpl.content }),
-      });
-      const data = await res.json();
-      setPreview(data.preview);
-      console.log("FRONTEND RECEIVED PREVIEW:", data);
-    }
-    load();
-  }, [id]);
+    const data = await res.json();
+    setPreview(data.preview);
+  }
+  load();
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [id]);
+
 
   // Handler - Change
   function handleContentChange(newContent: string) {
@@ -154,60 +169,83 @@ export function TemplateEditorPage() {
     }
   };
 
-  const handleEditorChange = (newValue: string) => {
-    setContent(newValue);
-    if (!newValue.trim()) {
-      setValidationResult(null);
-      setPreviewResult(null);
-      return; // stop here — do NOT call backend
-    }
-  };
+//   const handleEditorChange = (newValue: string) => {
+//     setContent(newValue);
+//     if (!newValue.trim()) {
+//       setValidationResult(null);
+//       setPreviewResult(null);
+//       return; // stop here — do NOT call backend
+//     }
+//   };
 
   // Handler - Save
-  const handleSave = async () => {
-    // CREATE
-    if (!metadata.id) {
-      const res = await apiFetch("/api/templates/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...metadata,
-          content
-        }),
-      });
+const handleSave = async () => {
+  console.log("Save button clicked (TemplateEditorPage) — metadata:", metadata);
 
-      const data = await res.json();
-
-      setMetadata(prev => ({
-        ...prev,
-        id: data.id
-      }));
-
-      navigate(`/templates/${data.id}`);
-
-      return; // ⭐ critical
-    }
-
-    // UPDATE
-    setIsSaving(true);
-    setSaveError(null);
-    setSaveSuccess(false);
-
-    try {
-      const payload = { content, ...metadata };
-      console.log("Payload being sent:", payload);
-
-      const result = await saveTemplate(metadata.id!, payload);
-      console.log("Save result:", result);
-
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 2000);
-    } catch (err: any) {
-      setSaveError(err.message || "Failed to save template");
-    } finally {
-      setIsSaving(false);
-    }
+  // Build a clean payload that matches the Django Template model
+  const payload = {
+    name: metadata.name || "",
+    description: metadata.description || "",
+    subject: metadata.subject || "",
+    topic: metadata.topic || "",
+    subtopic: metadata.subtopic || "",
+    difficulty: metadata.difficulty || "",
+    tags: metadata.tags || [],
+    curriculum: metadata.curriculum || [],
+    skill: metadata.skill || null,
+    content
   };
+
+  // CREATE
+  if (!metadata.id) {
+    console.log("Creating new template with payload:", payload);
+
+    const res = await apiFetch("/api/templates/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("Template CREATE failed:", errorText);
+      alert("Template creation failed. Check console for details.");
+      return;
+    }
+
+    const data = await res.json();
+    console.log("Template created:", data);
+
+    // Store the new ID
+    setMetadata(prev => ({ ...prev, id: data.id }));
+
+    // Navigate to the new template page
+    navigate(`/templates/${data.id}`);
+    return;
+  }
+
+  // UPDATE
+  console.log("Updating existing template:", metadata.id);
+
+  const res = await apiFetch(`/api/templates/${metadata.id}/`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error("Template UPDATE failed:", errorText);
+    alert("Template update failed. Check console for details.");
+    return;
+  }
+
+  const data = await res.json();
+  console.log("Template updated:", data);
+
+  // Update metadata (in case backend modifies anything)
+  setMetadata(prev => ({ ...prev, ...data }));
+};
 
   const handleValidate = async () => {
     const result = await validateTemplate({ content });
@@ -228,20 +266,21 @@ export function TemplateEditorPage() {
     };
 
   return (
-  <Layout>
-    <div className="template-editor-page">
-      {/* Top metadata + actions */}
-      <TemplateMetadataBar
-        metadata={metadata}
-        onChange={handleMetadataChange}
-        onSave={handleSave}
-        onValidate={handleValidate}
-        onPreview={handlePreview}
-        isSaving={isSaving}
-        saveError={saveError}
-        saveSuccess={saveSuccess}
-        onToSkill={handleToSkill}
-      />
+<Layout>
+  <div className="template-editor-page">
+
+    {/* Top metadata + actions */}
+    <TemplateMetadataBar
+      metadata={metadata}
+      onChange={handleMetadataChange}
+      onSave={handleSave}
+      onValidate={handleValidate}
+      onPreview={handlePreview}
+      isSaving={isSaving}
+      saveError={saveError}
+      saveSuccess={saveSuccess}
+      onToSkill={handleToSkill}
+    />
 
     <div className="container-fluid">
       <div className="row" style={{ height: "70vh" }}>
@@ -250,7 +289,10 @@ export function TemplateEditorPage() {
         <div className="col-md-4 d-flex flex-column" style={{ height: "100%" }}>
           <div className="card shadow-sm flex-grow-1">
             <div className="card-header">Question Definition</div>
-            <div className="card-body p-0 d-flex flex-column" style={{ overflow: "hidden" }}>
+            <div
+              className="card-body p-0 d-flex flex-column"
+              style={{ overflow: "hidden" }}
+            >
               <EditorPanel
                 content={content}
                 onChange={handleContentChange}
@@ -275,7 +317,10 @@ export function TemplateEditorPage() {
         <div className="col-md-4 d-flex flex-column" style={{ height: "100%" }}>
           <div className="card shadow-sm flex-grow-1">
             <div className="card-header">Student Preview</div>
-            <div className="card-body p-2 d-flex flex-column" style={{ overflow: "hidden" }}>
+            <div
+              className="card-body p-2 d-flex flex-column"
+              style={{ overflow: "hidden" }}
+            >
               <PreviewPanel
                 preview={preview}
                 templateContent={content}
@@ -284,8 +329,11 @@ export function TemplateEditorPage() {
             </div>
           </div>
         </div>
+
       </div>
     </div>
-  </Layout>
+
+  </div>
+</Layout>
   );
 }

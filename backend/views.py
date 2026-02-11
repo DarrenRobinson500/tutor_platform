@@ -39,7 +39,7 @@ class AuthViewSet(viewsets.ViewSet):
 class TemplateViewSet(viewsets.ModelViewSet):
     queryset = Template.objects.all()
     serializer_class = TemplateSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     @action(detail=False, methods=["post"])
     def autosave(self, request):
@@ -72,6 +72,15 @@ class TemplateViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["post"])
     def preview(self, request):
         content = request.data.get("content", "")
+        template_id = request.data.get("templateId") or request.data.get("id")
+
+        # Try to load Template model instance
+        template_obj = None
+        if template_id not in [None, "", "undefined", "new"]:
+            try:
+                template_obj = Template.objects.select_related("skill").get(pk=template_id)
+            except Template.DoesNotExist:
+                template_obj = None
 
         # Step 1: Try YAML
         try:
@@ -110,7 +119,10 @@ class TemplateViewSet(viewsets.ModelViewSet):
         for attempt in range(MAX_ATTEMPTS):
             try:
                 preview = render_template_preview(parsed)
-                print("PREVIEW RETURNED FROM BACKEND:", preview)
+
+                preview["skill"] = template_obj.skill.description if template_obj else None
+                preview["grade"] = template_obj.grade if template_obj else None
+                preview["difficulty"] = template_obj.difficulty if template_obj else None
 
                 return Response({"ok": True, "preview": preview})
             except Exception as e:
@@ -142,7 +154,6 @@ class TemplateViewSet(viewsets.ModelViewSet):
     def generate(self, request):
         skill_id = request.data.get("skill_id")
         grade = request.data.get("grade")
-
         if not skill_id:
             return Response({"error": "skill_id missing"}, status=400)
         try:
@@ -160,6 +171,7 @@ class TemplateViewSet(viewsets.ModelViewSet):
             template = Template.objects.create(
                 skill=skill,
                 grade=grade,
+                difficulty=item["difficulty"],
                 subject=item["title"],
                 content=format_for_editor(item),
             )
@@ -191,6 +203,39 @@ class TemplateViewSet(viewsets.ModelViewSet):
 
         return Response({"ok": True})
 
+    @action(detail=False, methods=["get"])
+    def filtered(self, request):
+        skill = request.query_params.get("skill")
+        grade = request.query_params.get("grade")
+        difficulty = request.query_params.get("difficulty")
+
+        qs = Template.objects.all()
+        print("pre", len(qs))
+        if skill:
+            qs = qs.filter(skill_id=skill)
+        print("skill", len(qs))
+        if grade:
+            qs = qs.filter(grade=grade)
+        print("grade", len(qs))
+        if difficulty:
+            qs = qs.filter(difficulty=difficulty)
+        print("difficulty", len(qs))
+
+        qs = qs.order_by("id")
+        print("post", len(qs))
+
+        return Response([
+            {
+                "id": t.id,
+                "name": t.name,
+                "subject": t.subject,
+                "skill": t.skill_id,
+                "grade": t.grade,
+                "difficulty": t.difficulty,
+            }
+            for t in qs
+        ])
+
 
 class SkillViewSet(viewsets.ModelViewSet):
     queryset = Skill.objects.all().order_by("order_index")
@@ -200,6 +245,27 @@ class SkillViewSet(viewsets.ModelViewSet):
         if self.action in ["retrieve", "children"]:
             return SkillDetailSerializer
         return SkillSerializer
+
+    @action(detail=False, methods=["get"])
+    def leaf(self, request):
+        grade = request.query_params.get("grade")
+        matrix = get_matrix_cache()  # uses cached tree
+        rows = matrix["skills"]
+        leaf_skills = []
+        for row in rows:
+            if row["children_count"] != 0:
+                continue
+            if grade:
+                g = str(grade)
+                if row["cells"][g]["colour"] != "covered":
+                    continue
+
+            leaf_skills.append({
+                "id": row["id"],
+                "description": row["description"],
+            })
+
+        return Response(leaf_skills)
 
     @action(detail=True, methods=["get"])
     def children(self, request, pk=None):

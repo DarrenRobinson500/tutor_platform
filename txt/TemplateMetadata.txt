@@ -7,16 +7,10 @@ interface TemplateMetadataBarProps {
   isSaving: boolean;
   saveSuccess: boolean;
   saveError: string | null;
-
-//   onChange: (updater: (prev: any) => any) => void;
-//   onSave: () => void;
   onValidate: () => void;
   onPreview: () => void;
-
+  onToSkill: () => void;
 }
-
-
-
 
 export function TemplateMetadataBar({
   metadata,
@@ -24,6 +18,7 @@ export function TemplateMetadataBar({
   onSave,
   onValidate,
   onPreview,
+  onToSkill,
   isSaving,
   saveError,
   saveSuccess
@@ -32,8 +27,6 @@ export function TemplateMetadataBar({
   if (!metadata) {
     return <div style={{ padding: 12 }}>Loading…</div>;
   }
-
-// console.log("TemplateMetadataBar useParams:", useParams());
 
   return (
     <div
@@ -64,7 +57,7 @@ onChange={(e) =>
         type="button"
         className="btn btn-primary"
         onClick={() => {
-          console.log("Save button clicked");
+          console.log("Save button clicked (TemplateMetadataBar)");
           onSave();
         }}
         disabled={isSaving}
@@ -97,6 +90,15 @@ onChange={(e) =>
           {saveError}
         </span>
       )}
+
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={onToSkill}
+        >
+          Skill
+        </button>
+
 
       <button onClick={onValidate} className="btn btn-primary">Validate</button>
       <button onClick={onPreview} className="btn btn-primary">Preview</button>
