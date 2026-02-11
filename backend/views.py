@@ -5,8 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.contrib.auth import authenticate, login, logout
-from datetime import datetime, timedelta, time as dtime
-
+# from datetime import datetime, timedelta, time as dtime
 
 from .validation import *
 from .rendering import *
@@ -19,79 +18,9 @@ from .ai import *
 from .utilities import *
 from .serializers import *
 from .tutor_calendar import *
+from .cache import *
+import time
 
-GRADES = ["K", 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-
-MATRIX_CACHE = None
-
-# views.py (or a separate utils/skills_matrix.py file)
-
-# from .models import Skill
-
-GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
-
-def flatten_skills(top_level_skills):
-    flat = []
-
-    def walk(skill, depth):
-        flat.append((skill, depth))
-        for child in skill.children.all().order_by("id"):
-            walk(child, depth + 1)
-    for root in top_level_skills:
-        walk(root, 0)
-
-    return flat
-
-
-
-def build_matrix():
-    top_level = Skill.objects.filter(parent=None).order_by("id")
-    flat = flatten_skills(top_level)
-
-    rows = []
-    for skill, depth in flat:
-        # print("Build matrix:", skill)
-        grade_list = [str(g) for g in skill.get_grade_list()]
-        cells = {}
-        for g in GRADES:
-            g_str = str(g)
-            colour = "covered" if g_str in grade_list else "empty"
-            count = 0
-            # count = skill.template_count()
-            cells[g_str] = {"colour": colour, "count": count}
-
-        rows.append({
-            "id": skill.id,
-            "code": skill.code,
-            "description": skill.description,
-            "depth": depth,
-            "cells": cells
-        })
-
-    return {
-        "grades": GRADES,
-        "skills": rows
-    }
-
-
-def get_matrix_cache():
-    global MATRIX_CACHE
-    if MATRIX_CACHE is None:
-        MATRIX_CACHE = build_matrix()   # heavy work
-    return MATRIX_CACHE
-
-# get_matrix_cache()
-# print("Matrix cache:")
-# print(MATRIX_CACHE)
-
-
-def flatten_skills(skills, depth=0):
-    flat = []
-    for skill in skills:
-        flat.append((skill, depth))
-        children = skill.children.all().order_by("id")
-        flat.extend(flatten_skills(children, depth + 1))
-    return flat
 
 class AuthViewSet(viewsets.ViewSet):
     permission_classes = [AllowAny]
@@ -212,6 +141,7 @@ class TemplateViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["post"])
     def generate(self, request):
         skill_id = request.data.get("skill_id")
+        grade = request.data.get("grade")
 
         if not skill_id:
             return Response({"error": "skill_id missing"}, status=400)
@@ -220,8 +150,8 @@ class TemplateViewSet(viewsets.ModelViewSet):
         except Skill.DoesNotExist:
             return Response({"error": "Skill not found"}, status=404)
 
-        print("\nSkill:\n", skill.description)
-        data = generate_template_content(skill.description)
+        print(f"Skill: {skill.description}, Grade: {grade}")
+        data = generate_template_content(skill.description, grade)
         print("AI Output:\n", data)
 
         created_templates = []
@@ -229,6 +159,7 @@ class TemplateViewSet(viewsets.ModelViewSet):
         for item in data:
             template = Template.objects.create(
                 skill=skill,
+                grade=grade,
                 subject=item["title"],
                 content=format_for_editor(item),
             )
@@ -236,6 +167,7 @@ class TemplateViewSet(viewsets.ModelViewSet):
 
         # Return ONLY the first created template
         first = created_templates[0]
+        update_matrix_cache_for_template_count(skill_id)
 
         return Response({
             "id": first.id,
@@ -354,6 +286,7 @@ class SkillViewSet(viewsets.ModelViewSet):
 # -------------- TUTOR ---------------- #
 
 class TutorViewSet(viewsets.ModelViewSet):
+
     queryset = User.objects.filter(role="tutor").order_by("username")
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
@@ -377,24 +310,7 @@ class TutorViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"])
     def students(self, request, pk=None):
         tutor = self.get_object()
-
-        # Get all students linked to this tutor
-        links = TutorStudent.objects.filter(tutor=tutor).select_related("student__student_profile")
-        student_users = [link.student for link in links]
-
-        data = []
-        for student_user in student_users:
-            student_profile = student_user.get_student_profile()
-
-            data.append({
-                "id": student_user.id,
-                "first_name": student_user.first_name,
-                "last_name": student_user.last_name,
-                "email": student_user.email,
-                "year_level": student_profile.year_level,
-                "area_of_study": student_profile.area_of_study,
-            })
-
+        data = get_cached_students_for_tutor(tutor)
         return Response(data)
 
     @action(detail=False, methods=["post"])
@@ -463,12 +379,15 @@ class TutorViewSet(viewsets.ModelViewSet):
             start_time=start,
             end_time=end,
         )
+        invalidate_weekly_slots_cache_for_tutor(tutor.id)
 
         return Response({"id": a.id})
 
     @action(detail=True, methods=["post"])
     def remove_availability(self, request, pk=None):
         TutorAvailability.objects.filter(id=request.data.get("id")).delete()
+        invalidate_weekly_slots_cache_for_tutor(tutor.id)
+
         return Response({"status": "ok"})
 
     @action(detail=True, methods=["post"])
@@ -476,22 +395,30 @@ class TutorViewSet(viewsets.ModelViewSet):
         tutor = self.get_object()
         date = request.data.get("date")
         b = TutorBlockedDay.objects.create(tutor=tutor, date=date)
+        invalidate_weekly_slots_cache_for_tutor(tutor.id)
+
         return Response({"id": b.id})
 
 
     @action(detail=True, methods=["post"])
     def unblock_day(self, request, pk=None):
         TutorBlockedDay.objects.filter(id=request.data.get("id")).delete()
+        invalidate_weekly_slots_cache_for_tutor(tutor.id)
+
         return Response({"status": "ok"})
 
     @action(detail=True, methods=["get"])
     def weekly_slots(self, request, pk=None):
+        start = time.perf_counter()
+
         user = self.get_object()
         tutor = user.get_tutor_profile()
-        student_id = request.query_params.get("student")
-        student = User.objects.filter(pk=student_id).first()
-        # print("Weekly slots (student)", student_id, student)
 
+        # Optional student
+        student_id = request.query_params.get("student")
+        student = User.objects.filter(pk=student_id).first() if student_id else None
+
+        # Parse week_start
         week_start_str = request.query_params.get("week_start")
         if not week_start_str:
             return Response({"error": "week_start is required (YYYY-MM-DD)"}, status=400)
@@ -502,7 +429,11 @@ class TutorViewSet(viewsets.ModelViewSet):
             return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=400)
 
         week_start = get_sunday_start(raw_date)
-        week_data = tutor.generate_weekly_slots(week_start, student)
+
+        # Use cached version
+        week_data = get_cached_weekly_slots(tutor, week_start, student)
+
+        print(f"Weekly slots build took {time.perf_counter() - start:.4f} seconds")
 
         return Response({"week": week_data}, status=200)
 
@@ -586,6 +517,7 @@ class TutorViewSet(viewsets.ModelViewSet):
                     "success": False,
                     "reason": str(e),
                 })
+        invalidate_weekly_slots_cache_for_tutor(tutor.id)
 
         return Response({
             "status": "ok" if created > 0 else "error",
@@ -653,6 +585,7 @@ class StudentViewSet(viewsets.ModelViewSet):
         email = request.data.get("email")
         password = request.data.get("password") or User.objects.make_random_password()
         tutor_id = request.data.get("tutor_id")
+        invalidate_students_cache_for_tutor(tutor_id)
 
         if not name or not email:
             return Response({"error": "Name and email are required"}, status=400)

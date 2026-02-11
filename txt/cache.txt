@@ -1,0 +1,61 @@
+MATRIX_CACHE = None
+GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+
+def flatten_skills(skills, children_map, depth=0):
+    flat = []
+    for skill in skills:
+        flat.append((skill, depth))
+        children = children_map.get(skill.id, [])
+        flat.extend(flatten_skills(children, children_map, depth + 1))
+    return flat
+
+
+def build_matrix():
+    skills = list(
+        Skill.objects.all()
+        .select_related("parent")
+        .order_by("id")
+    )
+
+    # Load template counts in one query
+    template_counts = dict(
+        Template.objects.values("skill_id")
+        .annotate(count=Count("id"))
+        .values_list("skill_id", "count")
+    )
+
+    # Build children map
+    children_map = {}
+    for skill in skills:
+        parent_id = skill.parent_id
+        children_map.setdefault(parent_id, []).append(skill)
+
+    # Get top-level skills and flatten
+    top_level = children_map.get(None, [])
+    flat = flatten_skills(top_level, children_map)
+
+    # Build rows
+    rows = []
+    for skill, depth in flat:
+        # No DB hit — grades already loaded
+        grade_list = [str(g) for g in skill.get_grade_list()]
+
+        cells = {}
+        for g in GRADES:
+            g_str = str(g)
+            colour = "covered" if g_str in grade_list else "empty"
+            cells[g_str] = {"colour": colour, "count": 0}
+
+        rows.append({
+            "id": skill.id,
+            "code": skill.code,
+            "description": skill.description,
+            "depth": depth,
+            "children_count": len(children_map.get(skill.id, [])),
+            "cells": cells,
+        })
+
+    return {
+        "grades": GRADES,
+        "skills": rows
+    }

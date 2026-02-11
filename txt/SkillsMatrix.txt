@@ -1,0 +1,83 @@
+import React, { useEffect, useState } from "react";
+import { apiFetch } from "../../utils/apiFetch"
+
+interface CellData {
+  colour: string;
+  count: number | null;
+}
+
+interface SkillRow {
+  id: number;
+  code: string;
+  description: string;
+  depth: number;
+  cells: Record<string, CellData>;
+}
+
+interface MatrixResponse {
+  grades: (string | number)[];
+  skills: SkillRow[];
+}
+
+export function SkillsMatrix() {
+  const [data, setData] = useState<MatrixResponse | null>(null);
+  console.log("SkillsMatrix rendered")
+
+  useEffect(() => {
+    console.log("SkillsMatrix useEffect running")
+    apiFetch("/api/skills/matrix/")
+      .then(res => {
+        console.log("Matrix response:", res)
+        return res.json()
+      })
+      .then(data => {
+        console.log("Matrix JSON:", data)
+        setData(data)
+      })
+      .catch(err => console.error("Matrix load error", err))
+  }, [])
+
+
+
+  if (!data) return <div>Loading…</div>;
+
+  return (
+    <div className="skills-matrix-container">
+      <table className="skills-matrix">
+        <thead>
+          <tr>
+            <th className="skill-header">Skill</th>
+            {data.grades.map(g => (
+              <th key={g} className="grade-header">{g}</th>
+            ))}
+          </tr>
+        </thead>
+
+        <tbody>
+          {data.skills.map(skill => (
+            <tr key={skill.id}>
+              <td
+                className="skill-cell"
+                style={{ paddingLeft: `${skill.depth * 20}px` }}
+              >
+                {skill.description}
+              </td>
+
+              {data.grades.map(g => {
+                const cell = skill.cells[String(g)];
+                return (
+                  <td
+                    key={g}
+                    className={`matrix-cell ${cell.colour}`}
+                  >
+                    {cell.count !== null ? cell.count : ""}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}

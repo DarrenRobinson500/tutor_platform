@@ -6,6 +6,7 @@ from django.conf import settings as django_settings
 from datetime import datetime, timedelta, time
 # from django.utils.timezone import make_aware
 from django.utils.timezone import make_aware
+from django.db.models import Count
 
 
 from django.utils import timezone
@@ -378,6 +379,7 @@ class Template(models.Model):
     subject = models.CharField(max_length=200, blank=True, null=True)
     topic = models.CharField(max_length=100, blank=True)
     subtopic = models.CharField(max_length=100, blank=True)
+    grade = models.CharField(max_length=2, null=True, blank=True)
     difficulty = models.CharField(max_length=50, blank=True)
     tags = models.JSONField(default=list, blank=True)
 
