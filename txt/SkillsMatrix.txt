@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { apiFetch } from "../../utils/apiFetch"
+import { apiFetch } from "../../utils/apiFetch";
+import { useTemplateApi } from "../../api/useTemplateApi";
+import { useNavigate } from "react-router-dom";
 
 interface CellData {
   colour: string;
@@ -11,6 +13,8 @@ interface SkillRow {
   code: string;
   description: string;
   depth: number;
+  parent_id: number | null;
+  children_count: number;
   cells: Record<string, CellData>;
 }
 
@@ -19,63 +23,254 @@ interface MatrixResponse {
   skills: SkillRow[];
 }
 
+type Skill = {
+  id: number;
+  parent_id: number | null;
+  children_count: number;
+  depth: number;
+  description: string;
+  cells: Record<string, { colour: string; count: number }>;
+};
+
+type FlatRow = [Skill, number];
+
+
+function getVisibleSkillIds(
+  skills: SkillRow[],
+  selectedGrade: string | number | null
+) {
+  if (!selectedGrade || selectedGrade === "All") {
+    return null; // means "show everything"
+  }
+
+  const gradeStr = String(selectedGrade);
+
+  const skillMap = new Map(skills.map(s => [s.id, s]));
+
+  // 1. Find all leaf skills covered in this grade
+  const coveredLeafIds = new Set(
+    skills
+      .filter(s => s.children_count === 0)
+      .filter(s => {
+        const cell = s.cells[gradeStr];
+        return cell && cell.colour === "covered";
+      })
+      .map(s => s.id)
+  );
+
+  // 2. Add ancestors
+  const visibleIds = new Set<number>();
+
+  function addAncestors(id: number) {
+    if (visibleIds.has(id)) return;
+    visibleIds.add(id);
+
+    const skill = skillMap.get(id);
+    if (skill?.parent_id) addAncestors(skill.parent_id);
+  }
+
+  coveredLeafIds.forEach(id => addAncestors(id));
+
+  return visibleIds;
+}
+
 export function SkillsMatrix() {
   const [data, setData] = useState<MatrixResponse | null>(null);
-  console.log("SkillsMatrix rendered")
+  const [selectedGrade, setSelectedGrade] = useState<string | number | null>(null);
+  const [filteredSkills, setFilteredSkills] = useState<SkillRow[]>([]);
+  const visibleIds = getVisibleSkillIds(data?.skills ?? [], selectedGrade);
+
+
+  const { generateTemplate, getFirstTemplate } = useTemplateApi();
+  const navigate = useNavigate();
+  const [loadingCell, setLoadingCell] = useState<{ skillId: number; grade: string | number } | null>(null);
 
   useEffect(() => {
-    console.log("SkillsMatrix useEffect running")
+
     apiFetch("/api/skills/matrix/")
-      .then(res => {
-        console.log("Matrix response:", res)
-        return res.json()
-      })
+      .then(res => res.json())
       .then(data => {
-        console.log("Matrix JSON:", data)
-        setData(data)
+        setData(data);
+        setFilteredSkills(data.skills); // default: show all
       })
-      .catch(err => console.error("Matrix load error", err))
-  }, [])
+      .catch(err => console.error("Matrix load error", err));
+  }, []);
+
+  // Filter whenever grade changes
+//   useEffect(() => {
+//     if (!data || !selectedGrade) {
+//       setFilteredSkills(data?.skills ?? []);
+//       return;
+//     }
+//
+//     const gradeStr = String(selectedGrade);
+//
+//     const filtered = data.skills.filter(skill => {
+//       const cell = skill.cells[gradeStr];
+//       return cell && cell.colour === "covered" && skill.children_count === 0;
+//     });
+//
+//     setFilteredSkills(filtered);
+//   }, [selectedGrade, data]);
+
+  useEffect(() => {
+    console.log("MATRIX DATA", data?.skills.slice(0, 20));
+    if (!data) return;
+
+    // Always start with ALL skills
+    const allSkills = data.skills;
+
+    // If no grade selected → show everything
+    if (!selectedGrade || selectedGrade === "All") {
+      setFilteredSkills(allSkills);
+      return;
+    }
+
+    // Otherwise still show ALL skills — visibility logic will hide irrelevant ones
+    setFilteredSkills(allSkills);
+  }, [selectedGrade, data]);
 
 
 
-  if (!data) return <div>Loading…</div>;
+
+  function handleCreateTemplate(skillId: number, grade: string | number) {
+    setLoadingCell({ skillId, grade });
+
+    generateTemplate(skillId, grade)
+      .then((template) => {
+        navigate(`/templates/${template.id}`);
+      })
+      .catch((err) => {
+        console.error("Template generation failed:", err);
+      })
+      .finally(() => {
+        setLoadingCell(null);
+      });
+  }
+
+  async function handleViewTemplate(skillId: number, grade: string | number) {
+    apiFetch("/api/templates/filtered/?skill=208&grade=3&difficulty=Easy")
+      .then(res => console.log("Status:", res.status))
+
+    try {
+      const template = await getFirstTemplate(skillId, grade);
+      if (template) {
+        navigate(`/templates/${template.id}`);
+      } else {
+        alert("No templates exist yet for this skill.");
+      }
+    } catch (err) {
+      console.error("Failed to load first template:", err);
+    }
+  }
+
+  if (!data) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: "200px" }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading…</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="skills-matrix-container">
+
+      {/* ⭐ Grade Filter Buttons */}
+      <div className="mb-3 d-flex gap-2">
+        {data.grades.map(g => (
+          <button
+            key={g}
+            className={`btn ${selectedGrade === g ? "btn-primary" : "btn-outline-primary"}`}
+            onClick={() => setSelectedGrade(g)}
+          >
+            {g}
+          </button>
+        ))}
+
+        {/* Clear filter */}
+        <button
+          className={`btn ${selectedGrade === null ? "btn-secondary" : "btn-outline-secondary"}`}
+          onClick={() => setSelectedGrade(null)}
+        >
+          All
+        </button>
+      </div>
+
       <table className="skills-matrix">
         <thead>
           <tr>
             <th className="skill-header">Skill</th>
-            {data.grades.map(g => (
-              <th key={g} className="grade-header">{g}</th>
-            ))}
+            <th className="skill-header">Templates</th>
+            <th className="skill-header">Actions</th>
           </tr>
         </thead>
 
         <tbody>
-          {data.skills.map(skill => (
-            <tr key={skill.id}>
-              <td
-                className="skill-cell"
-                style={{ paddingLeft: `${skill.depth * 20}px` }}
-              >
-                {skill.description}
-              </td>
+{filteredSkills
+  .filter(skill =>
+    !visibleIds ? true : visibleIds.has(skill.id)
+  )
+  .map(skill => {
 
-              {data.grades.map(g => {
-                const cell = skill.cells[String(g)];
-                return (
-                  <td
-                    key={g}
-                    className={`matrix-cell ${cell.colour}`}
-                  >
-                    {cell.count !== null ? cell.count : ""}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
+            const gradeStr = selectedGrade ? String(selectedGrade) : null;
+            const cell = gradeStr ? skill.cells[gradeStr] : null;
+            const isParent = skill.children_count > 0;
+            const isLoading =
+              loadingCell &&
+              loadingCell.skillId === skill.id &&
+              loadingCell.grade === selectedGrade;
+
+            const templateCount = gradeStr && cell ? cell.count : null;
+
+            return (
+              <tr key={skill.id} className={isParent ? "parent-row" : ""}>
+
+                <td style={{ paddingLeft: `${skill.depth * 20 + 10}px` }}>
+                  {skill.description}
+                </td>
+
+                <td>
+                  {templateCount !== null ? templateCount : "-"}
+                </td>
+
+                <td className="d-flex gap-2 align-items-center">
+
+                  {selectedGrade && selectedGrade !== "All" && skill.children_count === 0 && (
+                    <div className="d-flex gap-2 mt-1">
+
+                      {/* Spinner OR Create button */}
+                      {isLoading ? (
+                        <div className="spinner-border spinner-border-sm text-success" role="status" />
+                      ) : (
+                        cell?.colour === "covered" && (
+                          <button
+                            className="btn btn-success btn-sm"
+                            onClick={() => handleCreateTemplate(skill.id, selectedGrade)}
+                          >
+                            Create
+                          </button>
+                        )
+                      )}
+
+                      {/* View button */}
+                      {!isLoading && cell?.count! > 0 && (
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => handleViewTemplate(skill.id, selectedGrade)}
+                        >
+                          View
+                        </button>
+                      )}
+
+                    </div>
+                  )}
+
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

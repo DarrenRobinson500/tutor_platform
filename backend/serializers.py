@@ -10,22 +10,24 @@ class TemplateSerializer(serializers.ModelSerializer):
 class SkillSerializer(serializers.ModelSerializer):
     children_count = serializers.IntegerField(source="children.count", read_only=True)
     template_count = serializers.IntegerField(read_only=True)
+    parent_id = serializers.IntegerField(source="parent.id", allow_null=True)
 
     class Meta:
         model = Skill
-        fields = ["id", "parent", "code", "description", "grades", "order_index", "children_count", "template_count"]
+        fields = ["id", "parent_id", "code", "description", "grades", "order_index", "children_count", "template_count"]
+        # fields = ["id", "parent", "code", "description", "grades", "order_index", "children", "children_count", "template_count"]
 
-class SkillDetailSerializer(serializers.ModelSerializer):
-    children = SkillSerializer(many=True, read_only=True)
-    children_count = serializers.IntegerField(source="children.count", read_only=True)
-    template_count = serializers.SerializerMethodField()
-
-    def get_template_count(self, obj):
-        return obj.template_count()
-
-    class Meta:
-        model = Skill
-        fields = ["id", "parent", "code", "description", "grades", "order_index", "children", "children_count", "template_count"]
+# class SkillDetailSerializer(serializers.ModelSerializer):
+#     children = SkillSerializer(many=True, read_only=True)
+#     children_count = serializers.IntegerField(source="children.count", read_only=True)
+#     template_count = serializers.SerializerMethodField()
+#
+#     def get_template_count(self, obj):
+#         return obj.template_count()
+#
+#     class Meta:
+#         model = Skill
+#         fields = ["id", "parent", "code", "description", "grades", "order_index", "children", "children_count", "template_count"]
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:

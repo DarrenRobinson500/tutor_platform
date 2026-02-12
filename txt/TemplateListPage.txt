@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Layout } from "./components/Layout";
-import { useTemplateApi, TemplateSummary } from "../api/useTemplateApi";
+import { useTemplateApi } from "../api/useTemplateApi";
+import type { TemplateSummary } from "../types/TemplateMetadata";
+
 
 export function TemplateListPage() {
   const navigate = useNavigate();
@@ -16,7 +18,9 @@ export function TemplateListPage() {
       setTemplates(data);
     }
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   async function handleDelete(e: React.MouseEvent, id: number) {
     e.stopPropagation(); // prevent row click navigation
@@ -53,8 +57,8 @@ export function TemplateListPage() {
           <table className="table table-hover">
             <thead className="table-light">
               <tr>
-                <th>Name</th>
-                <th>Description</th>
+                <th>Skill</th>
+                <th>Grade</th>
                 <th>Subject</th>
                 <th>Status</th>
                 <th>Updated</th>
@@ -69,8 +73,8 @@ export function TemplateListPage() {
                   onClick={() => navigate(`/templates/${tpl.id}`)}
                   style={{ cursor: "pointer" }}
                 >
-                  <td>{tpl.name}</td>
-                  <td>{tpl.description}</td>
+                  <td>{tpl.skill}</td>
+                  <td>{tpl.grade}</td>
                   <td>{tpl.subject}</td>
                   <td>{tpl.status}</td>
                   <td>{new Date(tpl.updated_at).toLocaleString()}</td>

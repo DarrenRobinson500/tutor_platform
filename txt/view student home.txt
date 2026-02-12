@@ -1,0 +1,23 @@
+    @action(detail=True, methods=["get"])
+    def home(self, request, pk=None):
+        student_profile = self.get_object()
+        user = student_profile.user
+        tutor_user = user.get_tutor()
+        tutor_name = None
+        tutor_id = None
+        if tutor_user:
+            tutor_name = tutor_user.get_full_name() or tutor_user.username
+            tutor_id = tutor_user.id
+
+        # Build the flattened response
+        data = {
+            "id": user.id,
+            "name": user.get_full_name() or user.username,
+            "email": user.email,
+            "tutor_id": tutor_id,
+            "tutor_name": tutor_name,
+            "year_level": student_profile.year_level,
+            "area_of_study": student_profile.area_of_study,
+        }
+
+        return Response(data)

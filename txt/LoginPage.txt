@@ -1,6 +1,6 @@
-import { Layout } from "./components/Layout";
+// import { Layout } from "./components/Layout";
 import React, { useState, useEffect } from "react";
-import { apiFetch, apiFetchJson } from "../utils/apiFetch"
+import { apiFetch } from "../utils/apiFetch"
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -12,7 +12,7 @@ useEffect(() => {
   if (!token) return;
 
   // Validate token with backend
-  fetch("/api/auth/me/", {
+  apiFetch("/api/auth/me/", {
     headers: { Authorization: `Bearer ${token}` },
   })
     .then((res) => {
@@ -64,7 +64,7 @@ useEffect(() => {
     localStorage.setItem("refresh", tokens.refresh);
 
     // 3. Fetch current user info using the access token
-    const meRes = await fetch("/api/auth/me/", {
+    const meRes = await apiFetch("/api/auth/me/", {
       headers: {
         "Authorization": `Bearer ${tokens.access}`,
       },

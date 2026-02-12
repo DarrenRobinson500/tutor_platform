@@ -116,13 +116,16 @@ def build_matrix():
 
         rows.append({
             "id": skill.id,
+            "parent_id": skill.parent_id,
             "code": skill.code,
             "description": skill.description,
             "depth": depth,
             "children_count": len(children_map.get(skill.id, [])),
             "cells": cells,
         })
-
+    print("Matrix")
+    print(rows[0])
+    print(rows[1])
     return {
         "grades": GRADES,
         "skills": rows
@@ -134,15 +137,23 @@ def update_matrix_cache_for_template_count(skill_id):
     if MATRIX_CACHE is None:
         return  # nothing to update
 
-    # Recompute template count for this skill only
-    new_count = Template.objects.filter(skill_id=skill_id).count()
+    # Recompute counts for this skill grouped by grade
+    grade_counts = {
+        grade: count
+        for grade, count in Template.objects
+            .filter(skill_id=skill_id)
+            .values_list("grade")
+            .annotate(count=Count("id"))
+    }
 
-    # Update every grade cell for this skill
+    # Update only the affected row
     for row in MATRIX_CACHE["skills"]:
         if row["id"] == skill_id:
             for g in GRADES:
-                row["cells"][g]["count"] = new_count
+                g_str = str(g)
+                row["cells"][g_str]["count"] = grade_counts.get(g_str, 0)
             break
+
 
 
 def get_matrix_cache():
@@ -151,4 +162,34 @@ def get_matrix_cache():
         MATRIX_CACHE = build_matrix()   # heavy work
     return MATRIX_CACHE
 
+def filter_matrix_by_grade(matrix, grade):
+    grade_str = str(grade)
+    rows = matrix["skills"]
 
+    # 1. Find covered leaf skills for this grade
+    covered_leaf_ids = {
+        r["id"]
+        for r in rows
+        if r["children_count"] == 0
+        and r["cells"][grade_str]["colour"] == "covered"
+    }
+
+    # 2. Build parent lookup
+    parent_map = {r["id"]: r.get("parent_id") for r in rows}
+
+    # 3. Collect ancestors
+    visible_ids = set()
+
+    def add_ancestors(skill_id):
+        if skill_id in visible_ids:
+            return
+        visible_ids.add(skill_id)
+        parent_id = parent_map.get(skill_id)
+        if parent_id:
+            add_ancestors(parent_id)
+
+    for leaf_id in covered_leaf_ids:
+        add_ancestors(leaf_id)
+
+    # 4. Filter rows
+    return [r for r in rows if r["id"] in visible_ids]

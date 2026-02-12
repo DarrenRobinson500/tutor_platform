@@ -1,4 +1,7 @@
-// import yaml from "js-yaml";
+```tsx
+
+
+
 import debounce from "lodash.debounce";
 
 import { useEffect, useState, useRef } from "react";
@@ -7,16 +10,11 @@ import { TemplateMetadataBar } from "./components/TemplateMetadataBar";
 import { EditorPanel } from "./components/EditorPanel";
 import { ValuesPanel } from "./components/ValuesPanel";
 import { PreviewPanel } from "./components/PreviewPanel";
-// import { LogsPanel } from "./components/LogsPanel";
 import { Layout } from "./components/Layout";
-// import { DiagramEditor } from "./components/DiagramEditor";
-// import { renderDiagramFromCode } from "../diagram/engine";
 import { apiFetch } from "../utils/apiFetch"
 
-// API hooks
 import { useTemplateApi } from "../api/useTemplateApi";
 import { useValidationApi } from "../api/useValidationApi";
-// import { usePreviewApi } from "../api/usePreviewApi";
 import type { TemplateMetadata } from "../types/TemplateMetadata";
 
 interface PreviewResponse {
@@ -29,8 +27,14 @@ interface PreviewResponse {
   substituted_yaml: string;
 }
 
-
 export function TemplateEditorPage() {
+  const [filteredList, setFilteredList] = useState<any[]>([]);
+  const [currentIndex, setCurrentIndex] = useState<number>(0);
+  const [skills, setSkills] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<string[]>([]);
+
+
+
   const emptyMetadata = {
     id: null,
     name: "",
@@ -39,6 +43,7 @@ export function TemplateEditorPage() {
     topic: "",
     subtopic: "",
     difficulty: "",
+    grade: "",
     tags: [],
     curriculum: [],
     status: "draft",
@@ -50,7 +55,6 @@ export function TemplateEditorPage() {
   const params = useParams();
   const { id } = params;
   const [metadata, setMetadata] = useState<TemplateMetadata>(emptyMetadata);
-//   const isNew = id === "new";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isSaving, setIsSaving] = useState(false);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -66,7 +70,6 @@ export function TemplateEditorPage() {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { getTemplate, saveTemplate } = useTemplateApi();
   const { validateTemplate } = useValidationApi();
-//   const { previewTemplate } = usePreviewApi();
 
   function buildMetadataFromTemplate(tpl: any): TemplateMetadata {
     return {
@@ -77,6 +80,7 @@ export function TemplateEditorPage() {
       topic: tpl.topic ?? "",
       subtopic: tpl.subtopic ?? "",
       difficulty: tpl.difficulty ?? "",
+      grade: tpl.grade ?? null,
       tags: tpl.tags ?? [],
       curriculum: tpl.curriculum ?? [],
       status: tpl.status ?? "draft",
@@ -99,65 +103,83 @@ export function TemplateEditorPage() {
       console.log("Sending content to preview:", content);
 
       setPreview(data.preview);
+      if (data.preview) {
+        setMetadata(prev => ({
+          ...prev,
+          skill: data.preview.skill ?? prev.skill,
+          grade: data.preview.grade ?? prev.grade,
+          difficulty: data.preview.difficulty ?? prev.difficulty,
+        }));
+      }
+
     }, 400)
   ).current;
 
-//   function extractDiagramSvg(yamlText: string): string {
-//     try {
-//       const parsed: any = yaml.load(yamlText);
-//       return parsed?.diagram?.svg || "";
-//     } catch {
-//       return "";
-//     }
-//   }
+  useEffect(() => {
+    async function load() {
+      if (!id) return;
 
-// function updateYamlWithDiagram(originalYaml: string, newSvg: string, newCode: string): string {
-//   let parsed: any;
-//
-//   try {
-//     parsed = yaml.load(originalYaml) || {};
-//   } catch {
-//     return originalYaml;
-//   }
-//
-//   if (!parsed.diagram) {
-//     parsed.diagram = {};
-//   }
-//
-//   parsed.diagram.type = "svg";
-//   parsed.diagram.code = newCode;
-//   parsed.diagram.svg = newSvg;
-//
-//   return yaml.dump(parsed, { lineWidth: -1 });
-// }
+      const tpl = await getTemplate(id);
+      if (!tpl) return;
+
+      setContent(tpl.content);
+      setMetadata(buildMetadataFromTemplate(tpl));
+
+      const res = await apiFetch("/api/templates/preview/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: tpl.content }),
+      });
+
+      const data = await res.json();
+      setPreview(data.preview);
+    }
+    load();
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  useEffect(() => {
+    async function loadSkills() {
+      const grade = metadata.grade ?? "";
+      const res = await apiFetch(`/api/skills/leaf/?grade=${grade}`);
+      const data = await res.json();
+      setSkills(data);
+    }
+    loadSkills();
+  }, [metadata.grade]);
+
+  useEffect(() => {
+    const uniqueSubjects = Array.from(
+      new Set(filteredList.map(t => t.subject).filter(Boolean))
+    );
+    setSubjects(uniqueSubjects);
+    console.log("Filtered templates:", filteredList);
+
+  }, [filteredList]);
+
+  const handleSubjectChange = (subject: string) => {
+    setMetadata(prev => ({ ...prev, subject }));
+
+    if (!subject) {
+      // Reset to full filtered list
+      setCurrentIndex(0);
+      if (filteredList.length > 0) {
+        navigate(`/templates/${filteredList[0].id}`);
+      }
+      return;
+    }
+
+    // Filter templates by subject
+    const subjectFiltered = filteredList.filter(t => t.subject === subject);
+
+    if (subjectFiltered.length > 0) {
+      setCurrentIndex(0);
+      navigate(`/templates/${subjectFiltered[0].id}`);
+    }
+  };
 
 
-useEffect(() => {
-  async function load() {
-    if (!id) return;
-
-    const tpl = await getTemplate(id);
-    if (!tpl) return;
-
-    setContent(tpl.content);
-    setMetadata(buildMetadataFromTemplate(tpl));
-
-    const res = await apiFetch("/api/templates/preview/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: tpl.content }),
-    });
-
-    const data = await res.json();
-    setPreview(data.preview);
-  }
-  load();
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [id]);
-
-
-  // Handler - Change
   function handleContentChange(newContent: string) {
     setContent(newContent);
     debouncedPreview(newContent);
@@ -169,18 +191,9 @@ useEffect(() => {
     }
   };
 
-//   const handleEditorChange = (newValue: string) => {
-//     setContent(newValue);
-//     if (!newValue.trim()) {
-//       setValidationResult(null);
-//       setPreviewResult(null);
-//       return; // stop here — do NOT call backend
-//     }
-//   };
-
   // Handler - Save
-const handleSave = async () => {
-  console.log("Save button clicked (TemplateEditorPage) — metadata:", metadata);
+  const handleSave = async () => {
+    console.log("Save button clicked (TemplateEditorPage) — metadata:", metadata);
 
   // Build a clean payload that matches the Django Template model
   const payload = {
@@ -190,6 +203,7 @@ const handleSave = async () => {
     topic: metadata.topic || "",
     subtopic: metadata.subtopic || "",
     difficulty: metadata.difficulty || "",
+    grade: metadata.grade || null,
     tags: metadata.tags || [],
     curriculum: metadata.curriculum || [],
     skill: metadata.skill || null,
@@ -258,12 +272,53 @@ const handleSave = async () => {
     });
   };
 
-  const handleMetadataChange = (updated: Partial<TemplateMetadata>) => {
-      setMetadata(prev => ({
-        ...prev,
-        ...updated
-      }));
-    };
+  const handleMetadataChange = async (updated: Partial<TemplateMetadata>) => {
+    const newMeta = { ...metadata, ...updated };
+    setMetadata(newMeta);
+
+    // If any of the 3 filters changed, reload the list
+    if (updated.skill || updated.grade || updated.difficulty) {
+      const params = new URLSearchParams({
+        skill: String(newMeta.skill ?? ""),
+        grade: String(newMeta.grade ?? ""),
+        difficulty: String(newMeta.difficulty ?? ""),
+      });
+
+      if (updated.grade) {
+        const res = await apiFetch(`/api/skills/leaf/?grade=${updated.grade}`);
+        const data = await res.json();
+        setSkills(data);
+      }
+
+      const res = await apiFetch(`/api/templates/filtered/?${params.toString()}`);
+      const list = await res.json();
+
+      setFilteredList(list);
+      setCurrentIndex(0);
+
+      if (list.length > 0) {
+        navigate(`/templates/${list[0].id}`);
+      }
+    }
+  };
+
+  const goNext = () => {
+    if (currentIndex < filteredList.length - 1) {
+      const nextIndex = currentIndex + 1;
+      setCurrentIndex(nextIndex);
+      navigate(`/templates/${filteredList[nextIndex].id}`);
+    }
+  };
+
+  const goPrev = () => {
+    if (currentIndex > 0) {
+      const prevIndex = currentIndex - 1;
+      setCurrentIndex(prevIndex);
+      navigate(`/templates/${filteredList[prevIndex].id}`);
+    }
+  };
+
+
 
   return (
 <Layout>
@@ -276,10 +331,15 @@ const handleSave = async () => {
       onSave={handleSave}
       onValidate={handleValidate}
       onPreview={handlePreview}
+      onToSkill={handleToSkill}
       isSaving={isSaving}
       saveError={saveError}
       saveSuccess={saveSuccess}
-      onToSkill={handleToSkill}
+      onNext={goNext}
+      onPrev={goPrev}
+      skills={skills}
+      subjects={subjects}
+      onSubjectChange={handleSubjectChange}
     />
 
     <div className="container-fluid">
@@ -337,3 +397,5 @@ const handleSave = async () => {
 </Layout>
   );
 }
+
+```

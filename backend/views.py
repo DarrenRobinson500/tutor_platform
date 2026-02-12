@@ -209,6 +209,8 @@ class TemplateViewSet(viewsets.ModelViewSet):
         grade = request.query_params.get("grade")
         difficulty = request.query_params.get("difficulty")
 
+        print("FILTER RECEIVED GRADE:", repr(grade))
+
         qs = Template.objects.all()
         print("pre", len(qs))
         if skill:
@@ -218,7 +220,7 @@ class TemplateViewSet(viewsets.ModelViewSet):
             qs = qs.filter(grade=grade)
         print("grade", len(qs))
         if difficulty:
-            qs = qs.filter(difficulty=difficulty)
+            qs = qs.filter(difficulty__iexact=difficulty.strip())
         print("difficulty", len(qs))
 
         qs = qs.order_by("id")
@@ -239,12 +241,8 @@ class TemplateViewSet(viewsets.ModelViewSet):
 
 class SkillViewSet(viewsets.ModelViewSet):
     queryset = Skill.objects.all().order_by("order_index")
+    serializer_class = SkillSerializer
     permission_classes = [IsAuthenticated]
-
-    def get_serializer_class(self):
-        if self.action in ["retrieve", "children"]:
-            return SkillDetailSerializer
-        return SkillSerializer
 
     @action(detail=False, methods=["get"])
     def leaf(self, request):
@@ -309,12 +307,9 @@ class SkillViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["post"])
     def load_syllabus(self, request):
-        # Safety: prevent accidental double-import
-        from backend.models import Skill
-        if Skill.objects.exists():
-            return Response({"error": "Skills already exist. Clear them first."}, status=400)
-
         import_syllabus()
+        global MATRIX_CACHE
+        MATRIX_CACHE = None
         return Response({"status": "Syllabus loaded successfully"})
 
 
@@ -346,7 +341,17 @@ class SkillViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], permission_classes=[AllowAny])
     def matrix(self, request):
-        return Response(get_matrix_cache())
+        matrix = get_matrix_cache()  # fast, full matrix
+        grade = request.query_params.get("grade")
+
+        if grade and grade != "All":
+            filtered = filter_matrix_by_grade(matrix, grade)
+            return Response({
+                "grades": matrix["grades"],
+                "skills": filtered,
+            })
+
+        return Response(matrix)
 
 
 # -------------- TUTOR ---------------- #
@@ -622,14 +627,22 @@ class StudentViewSet(viewsets.ModelViewSet):
     def home(self, request, pk=None):
         student_profile = self.get_object()
         user = student_profile.user
-        tutor_user = user.get_tutor()
-        tutor_name = None
-        tutor_id = None
-        if tutor_user:
-            tutor_name = tutor_user.get_full_name() or tutor_user.username
-            tutor_id = tutor_user.id
 
-        # Build the flattened response
+        tutor_user = user.get_tutor()
+        tutor_name = tutor_user.get_full_name() or tutor_user.username if tutor_user else None
+        tutor_id = tutor_user.id if tutor_user else None
+
+        # Next booking
+        next_booking = (Appointment.objects.filter(student=user, start_datetime__gte=timezone.now()).order_by("start_datetime").first())
+
+        next_booking_data = None
+        if next_booking:
+            next_booking_data = {
+                "id": next_booking.id,
+                "start": next_booking.start_datetime,
+                "end": next_booking.end_datetime,
+            }
+
         data = {
             "id": user.id,
             "name": user.get_full_name() or user.username,
@@ -638,6 +651,7 @@ class StudentViewSet(viewsets.ModelViewSet):
             "tutor_name": tutor_name,
             "year_level": student_profile.year_level,
             "area_of_study": student_profile.area_of_study,
+            "next_booking": next_booking_data,
         }
 
         return Response(data)

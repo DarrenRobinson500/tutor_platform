@@ -2,400 +2,738 @@
   {
     "code": "NSW.MATH.NUMALG",
     "description": "Number and Algebra",
-    "years_practised": ["K",1,2,3,4,5,6,7,8,9,10],
+    "years_practised": ["K", 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
     "children": [
       {
         "code": "NSW.MATH.NUMALG.WHOLE",
         "description": "Whole Numbers",
-        "years_practised": ["K",1,2,3,4],
+        "years_practised": ["K", 1, 2, 3, 4],
         "children": [
           {
             "code": "NSW.MATH.NUMALG.WHOLE.1",
             "description": "Understanding whole number place value",
-            "years_practised": ["K",1,2,3]
+            "years_practised": ["K", 1, 2, 3]
           },
           {
             "code": "NSW.MATH.NUMALG.WHOLE.2",
             "description": "Applying whole number operations",
-            "years_practised": [1,2,3,4]
+            "years_practised": [1, 2, 3, 4]
           },
           {
             "code": "NSW.MATH.NUMALG.WHOLE.3",
             "description": "Estimating and checking calculations",
-            "years_practised": [2,3,4]
+            "years_practised": [2, 3, 4]
           }
         ]
       },
-
       {
         "code": "NSW.MATH.NUMALG.ADD_SUB",
         "description": "Addition and Subtraction",
-        "years_practised": ["K",1,2,3,4],
+        "years_practised": ["K", 1, 2, 3, 4],
         "children": [
           {
             "code": "NSW.MATH.NUMALG.ADD_SUB.1",
             "description": "Developing addition strategies",
-            "years_practised": ["K",1,2]
+            "years_practised": ["K", 1, 2]
           },
           {
             "code": "NSW.MATH.NUMALG.ADD_SUB.2",
             "description": "Developing subtraction strategies",
-            "years_practised": [1,2,3]
+            "years_practised": [1, 2, 3]
           },
           {
             "code": "NSW.MATH.NUMALG.ADD_SUB.3",
             "description": "Solving problems using addition and subtraction",
-            "years_practised": [2,3,4]
+            "years_practised": [2, 3, 4]
           }
         ]
       },
-
       {
         "code": "NSW.MATH.NUMALG.MULT_DIV",
         "description": "Multiplication and Division",
-        "years_practised": [2,3,4,5,6],
+        "years_practised": [2, 3, 4, 5, 6],
         "children": [
           {
             "code": "NSW.MATH.NUMALG.MULT_DIV.1",
             "description": "Understanding multiplication concepts",
-            "years_practised": [2,3]
+            "years_practised": [2, 3]
           },
           {
             "code": "NSW.MATH.NUMALG.MULT_DIV.2",
             "description": "Understanding division concepts",
-            "years_practised": [3,4]
+            "years_practised": [3, 4]
           },
           {
             "code": "NSW.MATH.NUMALG.MULT_DIV.3",
             "description": "Applying multiplication and division strategies",
-            "years_practised": [4,5,6]
+            "years_practised": [4, 5, 6]
           }
         ]
       },
-
       {
         "code": "NSW.MATH.NUMALG.FRACTIONS",
         "description": "Fractions and Decimals",
-        "years_practised": [3,4,5,6,7,8],
+        "years_practised": [3, 4, 5, 6, 7, 8],
         "children": [
           {
             "code": "NSW.MATH.NUMALG.FRACTIONS.1",
             "description": "Representing fractions",
-            "years_practised": [3,4]
+            "years_practised": [3, 4]
           },
           {
             "code": "NSW.MATH.NUMALG.FRACTIONS.2",
             "description": "Comparing and ordering fractions",
-            "years_practised": [4,5]
+            "years_practised": [4, 5]
           },
           {
             "code": "NSW.MATH.NUMALG.FRACTIONS.3",
             "description": "Understanding decimal notation",
-            "years_practised": [4,5,6]
+            "years_practised": [4, 5, 6]
           }
         ]
       },
-
       {
         "code": "NSW.MATH.NUMALG.RATIO",
         "description": "Ratios, Rates and Percentages",
-        "years_practised": [5,6,7,8,9],
+        "years_practised": [5, 6, 7, 8, 9],
         "children": [
           {
             "code": "NSW.MATH.NUMALG.RATIO.1",
             "description": "Understanding ratios",
-            "years_practised": [5,6]
+            "years_practised": [5, 6]
           },
           {
             "code": "NSW.MATH.NUMALG.RATIO.2",
             "description": "Understanding rates",
-            "years_practised": [6,7]
+            "years_practised": [6, 7]
           },
           {
             "code": "NSW.MATH.NUMALG.RATIO.3",
             "description": "Understanding percentages",
-            "years_practised": [5,6,7]
+            "years_practised": [5, 6, 7]
           }
         ]
       },
-
       {
         "code": "NSW.MATH.NUMALG.PATTERNS",
         "description": "Patterns and Algebra",
-        "years_practised": [3,4,5,6,7,8],
+        "years_practised": [3, 4, 5, 6, 7, 8],
         "children": [
           {
             "code": "NSW.MATH.NUMALG.PATTERNS.1",
             "description": "Identifying number patterns",
-            "years_practised": [3,4]
+            "years_practised": [3, 4]
           },
           {
             "code": "NSW.MATH.NUMALG.PATTERNS.2",
             "description": "Describing algebraic relationships",
-            "years_practised": [5,6]
+            "years_practised": [5, 6]
           },
           {
             "code": "NSW.MATH.NUMALG.PATTERNS.3",
             "description": "Using variables and simple expressions",
-            "years_practised": [6,7]
+            "years_practised": [6, 7]
           }
         ]
       },
-
       {
         "code": "NSW.MATH.NUMALG.FINANCE",
         "description": "Financial Mathematics",
-        "years_practised": [5,6,7,8,9,10],
+        "years_practised": [5, 6, 7, 8, 9, 10],
         "children": [
           {
             "code": "NSW.MATH.NUMALG.FINANCE.1",
             "description": "Understanding money and budgeting",
-            "years_practised": [5,6]
+            "years_practised": [5, 6]
           },
           {
             "code": "NSW.MATH.NUMALG.FINANCE.2",
             "description": "Calculating simple financial transactions",
-            "years_practised": [6,7]
+            "years_practised": [6, 7]
+          },
+          {
+            "code": "NSW.MATH.NUMALG.FINANCE.3",
+            "description": "Calculating simple and compound interest",
+            "years_practised": [8, 9, 10]
+          },
+          {
+            "code": "NSW.MATH.NUMALG.FINANCE.4",
+            "description": "Understanding depreciation and appreciation",
+            "years_practised": [9, 10]
+          },
+          {
+            "code": "NSW.MATH.NUMALG.FINANCE.5",
+            "description": "Understanding tax, loans and credit",
+            "years_practised": [8, 9, 10]
+          }
+        ]
+      },
+      {
+        "code": "NSW.MATH.NUMALG.INTEGERS",
+        "description": "Integers and Rational Numbers",
+        "years_practised": [7, 8],
+        "children": [
+          {
+            "code": "NSW.MATH.NUMALG.INTEGERS.1",
+            "description": "Operating with integers",
+            "years_practised": [7, 8]
+          },
+          {
+            "code": "NSW.MATH.NUMALG.INTEGERS.2",
+            "description": "Operating with rational numbers",
+            "years_practised": [7, 8]
+          }
+        ]
+      },
+      {
+        "code": "NSW.MATH.NUMALG.INDICES_SURDS",
+        "description": "Indices and Surds",
+        "years_practised": [8, 9, 10],
+        "children": [
+          {
+            "code": "NSW.MATH.NUMALG.INDICES_SURDS.1",
+            "description": "Applying the laws of indices",
+            "years_practised": [8, 9]
+          },
+          {
+            "code": "NSW.MATH.NUMALG.INDICES_SURDS.2",
+            "description": "Introducing surds and irrational numbers",
+            "years_practised": [9, 10]
+          }
+        ]
+      },
+      {
+        "code": "NSW.MATH.NUMALG.ALGEBRAIC_TECHNIQUES",
+        "description": "Algebraic Techniques",
+        "years_practised": [7, 8, 9, 10],
+        "children": [
+          {
+            "code": "NSW.MATH.NUMALG.ALGEBRAIC_TECHNIQUES.1",
+            "description": "Expanding and simplifying algebraic expressions",
+            "years_practised": [7, 8]
+          },
+          {
+            "code": "NSW.MATH.NUMALG.ALGEBRAIC_TECHNIQUES.2",
+            "description": "Factorising algebraic expressions",
+            "years_practised": [8, 9, 10]
+          }
+        ]
+      },
+      {
+        "code": "NSW.MATH.NUMALG.EQUATIONS",
+        "description": "Equations and Inequalities",
+        "years_practised": [7, 8, 9, 10],
+        "children": [
+          {
+            "code": "NSW.MATH.NUMALG.EQUATIONS.1",
+            "description": "Solving linear equations",
+            "years_practised": [7, 8]
+          },
+          {
+            "code": "NSW.MATH.NUMALG.EQUATIONS.2",
+            "description": "Solving equations with pronumerals on both sides",
+            "years_practised": [8, 9]
+          },
+          {
+            "code": "NSW.MATH.NUMALG.EQUATIONS.3",
+            "description": "Solving simple non-linear equations",
+            "years_practised": [9, 10]
+          },
+          {
+            "code": "NSW.MATH.NUMALG.EQUATIONS.4",
+            "description": "Solving and graphing inequalities",
+            "years_practised": [8, 9, 10]
+          }
+        ]
+      },
+      {
+        "code": "NSW.MATH.NUMALG.LINEAR_RELATIONSHIPS",
+        "description": "Linear Relationships",
+        "years_practised": [7, 8, 9, 10],
+        "children": [
+          {
+            "code": "NSW.MATH.NUMALG.LINEAR_RELATIONSHIPS.1",
+            "description": "Understanding gradient and intercepts",
+            "years_practised": [7, 8]
+          },
+          {
+            "code": "NSW.MATH.NUMALG.LINEAR_RELATIONSHIPS.2",
+            "description": "Graphing linear relationships",
+            "years_practised": [7, 8, 9]
+          },
+          {
+            "code": "NSW.MATH.NUMALG.LINEAR_RELATIONSHIPS.3",
+            "description": "Interpreting and applying linear models",
+            "years_practised": [8, 9, 10]
+          }
+        ]
+      },
+      {
+        "code": "NSW.MATH.NUMALG.NON_LINEAR",
+        "description": "Non-linear Relationships",
+        "years_practised": [8, 9, 10],
+        "children": [
+          {
+            "code": "NSW.MATH.NUMALG.NON_LINEAR.1",
+            "description": "Understanding quadratic relationships",
+            "years_practised": [8, 9]
+          },
+          {
+            "code": "NSW.MATH.NUMALG.NON_LINEAR.2",
+            "description": "Graphing and interpreting quadratic functions",
+            "years_practised": [9, 10]
+          },
+          {
+            "code": "NSW.MATH.NUMALG.NON_LINEAR.3",
+            "description": "Introducing exponential relationships",
+            "years_practised": [9, 10]
+          }
+        ]
+      },
+      {
+        "code": "NSW.MATH.NUMALG.PROPORTIONALITY",
+        "description": "Proportionality",
+        "years_practised": [7, 8, 9, 10],
+        "children": [
+          {
+            "code": "NSW.MATH.NUMALG.PROPORTIONALITY.1",
+            "description": "Understanding direct proportion",
+            "years_practised": [7, 8]
+          },
+          {
+            "code": "NSW.MATH.NUMALG.PROPORTIONALITY.2",
+            "description": "Understanding inverse proportion",
+            "years_practised": [8, 9, 10]
+          }
+        ]
+      },
+      {
+        "code": "NSW.MATH.NUMALG.MODELLING",
+        "description": "Algebraic and Financial Modelling",
+        "years_practised": [7, 8, 9, 10],
+        "children": [
+          {
+            "code": "NSW.MATH.NUMALG.MODELLING.1",
+            "description": "Modelling situations with linear relationships",
+            "years_practised": [7, 8, 9]
+          },
+          {
+            "code": "NSW.MATH.NUMALG.MODELLING.2",
+            "description": "Modelling situations with non-linear relationships",
+            "years_practised": [8, 9, 10]
+          },
+          {
+            "code": "NSW.MATH.NUMALG.MODELLING.3",
+            "description": "Modelling financial situations",
+            "years_practised": [8, 9, 10]
           }
         ]
       }
     ]
   },
-
   {
     "code": "NSW.MATH.MEASGEO",
     "description": "Measurement and Geometry",
-    "years_practised": ["K",1,2,3,4,5,6,7,8,9,10],
+    "years_practised": ["K", 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
     "children": [
       {
         "code": "NSW.MATH.MEASGEO.LENGTH",
         "description": "Length",
-        "years_practised": ["K",1,2,3,4],
+        "years_practised": ["K", 1, 2, 3, 4],
         "children": [
           {
             "code": "NSW.MATH.MEASGEO.LENGTH.1",
             "description": "Measuring and comparing lengths",
-            "years_practised": ["K",1,2]
+            "years_practised": ["K", 1, 2]
           },
           {
             "code": "NSW.MATH.MEASGEO.LENGTH.2",
             "description": "Converting between units of length",
-            "years_practised": [3,4]
+            "years_practised": [3, 4]
           }
         ]
       },
-
       {
         "code": "NSW.MATH.MEASGEO.AREA",
         "description": "Area",
-        "years_practised": [3,4,5,6],
+        "years_practised": [3, 4, 5, 6],
         "children": [
           {
             "code": "NSW.MATH.MEASGEO.AREA.1",
             "description": "Understanding area concepts",
-            "years_practised": [3,4]
+            "years_practised": [3, 4]
           },
           {
             "code": "NSW.MATH.MEASGEO.AREA.2",
             "description": "Calculating area of shapes",
-            "years_practised": [4,5,6]
+            "years_practised": [4, 5, 6]
           }
         ]
       },
-
       {
         "code": "NSW.MATH.MEASGEO.VOLUME",
         "description": "Volume and Capacity",
-        "years_practised": [3,4,5,6],
+        "years_practised": [3, 4, 5, 6],
         "children": [
           {
             "code": "NSW.MATH.MEASGEO.VOLUME.1",
             "description": "Measuring volume",
-            "years_practised": [3,4]
+            "years_practised": [3, 4]
           },
           {
             "code": "NSW.MATH.MEASGEO.VOLUME.2",
             "description": "Understanding capacity",
-            "years_practised": [4,5]
+            "years_practised": [4, 5]
           }
         ]
       },
-
       {
         "code": "NSW.MATH.MEASGEO.MASS",
         "description": "Mass",
-        "years_practised": ["K",1,2,3],
+        "years_practised": ["K", 1, 2, 3],
         "children": [
           {
             "code": "NSW.MATH.MEASGEO.MASS.1",
             "description": "Measuring mass",
-            "years_practised": ["K",1]
+            "years_practised": ["K", 1]
           },
           {
             "code": "NSW.MATH.MEASGEO.MASS.2",
             "description": "Comparing mass",
-            "years_practised": [1,2,3]
+            "years_practised": [1, 2, 3]
           }
         ]
       },
-
       {
         "code": "NSW.MATH.MEASGEO.TIME",
         "description": "Time",
-        "years_practised": ["K",1,2,3,4,5],
+        "years_practised": ["K", 1, 2, 3, 4, 5],
         "children": [
           {
             "code": "NSW.MATH.MEASGEO.TIME.1",
             "description": "Reading and interpreting time",
-            "years_practised": ["K",1,2]
+            "years_practised": ["K", 1, 2]
           },
           {
             "code": "NSW.MATH.MEASGEO.TIME.2",
             "description": "Calculating elapsed time",
-            "years_practised": [3,4,5]
+            "years_practised": [3, 4, 5]
           }
         ]
       },
-
       {
         "code": "NSW.MATH.MEASGEO.SPACE2D",
         "description": "2D Space",
-        "years_practised": ["K",1,2,3,4,5],
+        "years_practised": ["K", 1, 2, 3, 4, 5],
         "children": [
           {
             "code": "NSW.MATH.MEASGEO.SPACE2D.1",
             "description": "Identifying 2D shapes",
-            "years_practised": ["K",1,2]
+            "years_practised": ["K", 1, 2]
           },
           {
             "code": "NSW.MATH.MEASGEO.SPACE2D.2",
             "description": "Understanding symmetry and transformations",
-            "years_practised": [3,4,5]
+            "years_practised": [3, 4, 5]
           }
         ]
       },
-
       {
         "code": "NSW.MATH.MEASGEO.SPACE3D",
         "description": "3D Space",
-        "years_practised": [1,2,3,4,5,6],
+        "years_practised": [1, 2, 3, 4, 5, 6],
         "children": [
           {
             "code": "NSW.MATH.MEASGEO.SPACE3D.1",
             "description": "Identifying 3D objects",
-            "years_practised": [1,2,3]
+            "years_practised": [1, 2, 3]
           },
           {
             "code": "NSW.MATH.MEASGEO.SPACE3D.2",
             "description": "Understanding nets and surface area",
-            "years_practised": [4,5,6]
+            "years_practised": [4, 5, 6]
           }
         ]
       },
-
       {
         "code": "NSW.MATH.MEASGEO.ANGLES",
         "description": "Angles",
-        "years_practised": [3,4,5,6,7],
+        "years_practised": [3, 4, 5, 6, 7],
         "children": [
           {
             "code": "NSW.MATH.MEASGEO.ANGLES.1",
             "description": "Naming and identifying angles",
-            "years_practised": [3,4]
+            "years_practised": [3, 4]
           },
           {
             "code": "NSW.MATH.MEASGEO.ANGLES.2",
             "description": "Measuring and constructing angles",
-            "years_practised": [5,6,7]
+            "years_practised": [5, 6, 7]
           }
         ]
       },
-
       {
         "code": "NSW.MATH.MEASGEO.COORD",
         "description": "Coordinates",
-        "years_practised": [4,5,6,7,8],
+        "years_practised": [4, 5, 6, 7, 8],
         "children": [
           {
             "code": "NSW.MATH.MEASGEO.COORD.1",
             "description": "Plotting points on a grid",
-            "years_practised": [4,5]
+            "years_practised": [4, 5]
           },
           {
             "code": "NSW.MATH.MEASGEO.COORD.2",
             "description": "Interpreting coordinate relationships",
-            "years_practised": [6,7,8]
+            "years_practised": [6, 7, 8]
+          },
+          {
+            "code": "NSW.MATH.MEASGEO.COORD.3",
+            "description": "Understanding gradient and rate of change",
+            "years_practised": [7, 8, 9]
+          },
+          {
+            "code": "NSW.MATH.MEASGEO.COORD.4",
+            "description": "Using distance and midpoint formulas",
+            "years_practised": [8, 9, 10]
+          },
+          {
+            "code": "NSW.MATH.MEASGEO.COORD.5",
+            "description": "Finding equations of straight lines",
+            "years_practised": [8, 9, 10]
           }
         ]
       },
-
       {
         "code": "NSW.MATH.MEASGEO.TRIG",
         "description": "Trigonometry",
-        "years_practised": [8,9,10],
+        "years_practised": [8, 9, 10],
         "children": [
           {
             "code": "NSW.MATH.MEASGEO.TRIG.1",
             "description": "Understanding right‑angle trigonometry",
-            "years_practised": [8,9]
+            "years_practised": [8, 9]
           },
           {
             "code": "NSW.MATH.MEASGEO.TRIG.2",
             "description": "Applying trigonometric ratios",
-            "years_practised": [9,10]
+            "years_practised": [9, 10]
+          },
+          {
+            "code": "NSW.MATH.MEASGEO.TRIG.3",
+            "description": "Applying Sine Rule and Cosine Rule",
+            "years_practised": [9, 10]
+          }
+        ]
+      },
+      {
+        "code": "NSW.MATH.MEASGEO.PYTHAG",
+        "description": "Pythagoras' Theorem",
+        "years_practised": [8, 9, 10],
+        "children": [
+          {
+            "code": "NSW.MATH.MEASGEO.PYTHAG.1",
+            "description": "Understanding and applying Pythagoras' theorem",
+            "years_practised": [8, 9]
+          },
+          {
+            "code": "NSW.MATH.MEASGEO.PYTHAG.2",
+            "description": "Solving problems using Pythagoras' theorem",
+            "years_practised": [9, 10]
+          }
+        ]
+      },
+      {
+        "code": "NSW.MATH.MEASGEO.SIMILARITY",
+        "description": "Similarity and Congruence",
+        "years_practised": [7, 8, 9, 10],
+        "children": [
+          {
+            "code": "NSW.MATH.MEASGEO.SIMILARITY.1",
+            "description": "Understanding congruent figures",
+            "years_practised": [7, 8]
+          },
+          {
+            "code": "NSW.MATH.MEASGEO.SIMILARITY.2",
+            "description": "Understanding similar figures and scale factors",
+            "years_practised": [8, 9, 10]
+          }
+        ]
+      },
+      {
+        "code": "NSW.MATH.MEASGEO.GEO_REASONING",
+        "description": "Geometric Reasoning",
+        "years_practised": [7, 8, 9, 10],
+        "children": [
+          {
+            "code": "NSW.MATH.MEASGEO.GEO_REASONING.1",
+            "description": "Reasoning with angles and parallel lines",
+            "years_practised": [7, 8]
+          },
+          {
+            "code": "NSW.MATH.MEASGEO.GEO_REASONING.2",
+            "description": "Developing geometric proofs",
+            "years_practised": [8, 9, 10]
+          }
+        ]
+      },
+      {
+        "code": "NSW.MATH.MEASGEO.VOLUME_ADVANCED",
+        "description": "Volume and Surface Area of Solids",
+        "years_practised": [8, 9, 10],
+        "children": [
+          {
+            "code": "NSW.MATH.MEASGEO.VOLUME_ADVANCED.1",
+            "description": "Calculating volume of prisms and cylinders",
+            "years_practised": [8, 9]
+          },
+          {
+            "code": "NSW.MATH.MEASGEO.VOLUME_ADVANCED.2",
+            "description": "Calculating surface area and volume of composite solids",
+            "years_practised": [9, 10]
+          }
+        ]
+      },
+      {
+        "code": "NSW.MATH.MEASGEO.TRANSFORMATIONS",
+        "description": "Transformations and Loci",
+        "years_practised": [7, 8, 9, 10],
+        "children": [
+          {
+            "code": "NSW.MATH.MEASGEO.TRANSFORMATIONS.1",
+            "description": "Performing rotations, reflections and dilations",
+            "years_practised": [7, 8, 9]
+          },
+          {
+            "code": "NSW.MATH.MEASGEO.TRANSFORMATIONS.2",
+            "description": "Understanding loci and geometric constructions",
+            "years_practised": [8, 9, 10]
           }
         ]
       }
     ]
   },
-
   {
     "code": "NSW.MATH.STATPROB",
     "description": "Statistics and Probability",
-    "years_practised": ["K",1,2,3,4,5,6,7,8,9,10],
+    "years_practised": ["K", 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
     "children": [
       {
         "code": "NSW.MATH.STATPROB.DATA",
         "description": "Data",
-        "years_practised": [2,3,4,5,6,7,8],
+        "years_practised": [2, 3, 4, 5, 6, 7, 8],
         "children": [
           {
             "code": "NSW.MATH.STATPROB.DATA.1",
             "description": "Collecting and organising data",
-            "years_practised": [2,3]
+            "years_practised": [2, 3]
           },
           {
             "code": "NSW.MATH.STATPROB.DATA.2",
             "description": "Representing data using graphs",
-            "years_practised": [3,4,5]
+            "years_practised": [3, 4, 5]
           },
           {
             "code": "NSW.MATH.STATPROB.DATA.3",
             "description": "Interpreting data displays",
-            "years_practised": [4,5,6]
+            "years_practised": [4, 5, 6]
           }
         ]
       },
-
       {
         "code": "NSW.MATH.STATPROB.CHANCE",
         "description": "Chance",
-        "years_practised": [3,4,5,6,7,8],
+        "years_practised": [3, 4, 5, 6, 7, 8],
         "children": [
           {
             "code": "NSW.MATH.STATPROB.CHANCE.1",
             "description": "Describing chance events",
-            "years_practised": [3,4]
+            "years_practised": [3, 4]
           },
           {
             "code": "NSW.MATH.STATPROB.CHANCE.2",
             "description": "Conducting chance experiments",
-            "years_practised": [4,5]
+            "years_practised": [4, 5]
           },
           {
             "code": "NSW.MATH.STATPROB.CHANCE.3",
             "description": "Understanding probability models",
-            "years_practised": [6,7,8]
+            "years_practised": [6, 7, 8]
+          }
+        ]
+      },
+      {
+        "code": "NSW.MATH.STATPROB.STAT_ANALYSIS",
+        "description": "Statistical Analysis",
+        "years_practised": [8, 9, 10],
+        "children": [
+          {
+            "code": "NSW.MATH.STATPROB.STAT_ANALYSIS.1",
+            "description": "Calculating and interpreting measures of centre and spread",
+            "years_practised": [8, 9]
+          },
+          {
+            "code": "NSW.MATH.STATPROB.STAT_ANALYSIS.2",
+            "description": "Using interquartile range and standard deviation",
+            "years_practised": [9, 10]
+          }
+        ]
+      },
+      {
+        "code": "NSW.MATH.STATPROB.BIVARIATE",
+        "description": "Bivariate Data",
+        "years_practised": [9, 10],
+        "children": [
+          {
+            "code": "NSW.MATH.STATPROB.BIVARIATE.1",
+            "description": "Constructing and interpreting scatterplots",
+            "years_practised": [9, 10]
+          },
+          {
+            "code": "NSW.MATH.STATPROB.BIVARIATE.2",
+            "description": "Describing correlation and line of best fit",
+            "years_practised": [9, 10]
+          }
+        ]
+      },
+      {
+        "code": "NSW.MATH.STATPROB.SAMPLING",
+        "description": "Sampling and Data Collection",
+        "years_practised": [9, 10],
+        "children": [
+          {
+            "code": "NSW.MATH.STATPROB.SAMPLING.1",
+            "description": "Understanding sampling methods and bias",
+            "years_practised": [9, 10]
+          }
+        ]
+      },
+      {
+        "code": "NSW.MATH.STATPROB.PROB_MODELS_ADV",
+        "description": "Advanced Probability Models",
+        "years_practised": [8, 9, 10],
+        "children": [
+          {
+            "code": "NSW.MATH.STATPROB.PROB_MODELS_ADV.1",
+            "description": "Using two-way tables and Venn diagrams",
+            "years_practised": [8, 9]
+          },
+          {
+            "code": "NSW.MATH.STATPROB.PROB_MODELS_ADV.2",
+            "description": "Using tree diagrams to model probability",
+            "years_practised": [9, 10]
+          }
+        ]
+      },
+      {
+        "code": "NSW.MATH.STATPROB.EXPERIMENTAL_VS_THEORETICAL",
+        "description": "Experimental and Theoretical Probability",
+        "years_practised": [7, 8, 9],
+        "children": [
+          {
+            "code": "NSW.MATH.STATPROB.EXPERIMENTAL_VS_THEORETICAL.1",
+            "description": "Comparing experimental and theoretical probabilities",
+            "years_practised": [7, 8, 9]
           }
         ]
       }
