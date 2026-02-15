@@ -429,17 +429,12 @@ class Question(models.Model):
     correct_answer = models.TextField()
     help_requested = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    selected_answer = models.TextField(null=True)
+    correct = models.BooleanField(default=True)
+    time_taken_ms = models.IntegerField(null=True, blank=True)
 
     def __str__(self):
         return f"Instance {self.id} of {self.template.name}"
-
-class Task(models.Model):
-    student = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    assigned_at = models.DateTimeField(auto_now_add=True)
-
-class TaskItem(models.Model):
-    task = models.ForeignKey(Task, on_delete=models.CASCADE)
-    question = models.ForeignKey(Question, null=True, on_delete=models.CASCADE)
 
 class QuestionAttempt(models.Model):
     question = models.ForeignKey(Question, null=True, on_delete=models.CASCADE)
@@ -452,6 +447,14 @@ class QuestionAttempt(models.Model):
     time_taken_ms = models.IntegerField(null=True, blank=True)
 
     attempted_at = models.DateTimeField(auto_now_add=True, null=True)
+
+class Task(models.Model):
+    student = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    assigned_at = models.DateTimeField(auto_now_add=True)
+
+class TaskItem(models.Model):
+    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    question = models.ForeignKey(Question, null=True, on_delete=models.CASCADE)
 
 class SyllabusMapping(models.Model):
     template = models.ForeignKey(Template, on_delete=models.CASCADE)

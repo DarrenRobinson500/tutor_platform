@@ -7,6 +7,7 @@ from rest_framework_simplejwt.views import (
 from .views import *
 
 router = DefaultRouter()
+router.register(r"questions", QuestionViewSet, basename="questions")
 router.register(r"templates", TemplateViewSet, basename="template")
 router.register(r"skills", SkillViewSet, basename="skills")
 router.register(r"tutors", TutorViewSet, basename="tutor")

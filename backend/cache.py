@@ -123,9 +123,9 @@ def build_matrix():
             "children_count": len(children_map.get(skill.id, [])),
             "cells": cells,
         })
-    print("Matrix")
-    print(rows[0])
-    print(rows[1])
+    # print("Matrix")
+    # print(rows[0])
+    # print(rows[1])
     return {
         "grades": GRADES,
         "skills": rows

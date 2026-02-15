@@ -2,6 +2,7 @@ import re
 import random
 from math import gcd
 import yaml as _yaml
+from .diagram.engine import *
 
 
 def to_int(x):
@@ -113,7 +114,7 @@ def generate_param_values(params):
         # Case 5: unsupported → None
         generated[key] = None
 
-    debug_print_params(generated)
+    # debug_print_params(generated)
     return generated
 
 def evaluate_rule_expression(expr, params):
@@ -122,9 +123,8 @@ def evaluate_rule_expression(expr, params):
     safe_locals = dict(params)
     return bool(eval(expr, {"__builtins__": {}}, safe_locals))
 
-
-
 def render_template_preview(parsed):
+    print("Rendering template preview")
     """
     1. Generate parameters
     2. Substitute ALL {{ ... }} in the entire YAML
@@ -169,7 +169,8 @@ def render_template_preview(parsed):
         )
 
 
-    # 2. Substitute ALL {{ ... }} in the entire YAML
+    # 2. Substitute parameters
+    print("Substituting parameters")
     original_yaml_text = _yaml.dump(parsed)
     substituted_yaml_text = substitute_params_and_expressions(
         original_yaml_text, generated_params
@@ -257,19 +258,15 @@ def render_template_preview(parsed):
             deduped_answers.append(ans)
 
     # Diagram SVG + code (already substituted)
+    print("Rendering (substituted parameters for diagram):", substituted["diagram"])
+
+    diagram_code = substituted.get("diagram", "")
+
     svg = ""
-    diagram_code = ""
-    if substituted.get("diagram", {}).get("type") == "svg":
-        try:
-            svg = substituted["diagram"].get("svg", "")
-        except Exception as e:
-            svg = f"[ERROR extracting svg: {e}]"
-            collected_errors.append(svg)
-        try:
-            diagram_code = substituted["diagram"].get("code", "")
-        except Exception as e:
-            diagram_code = f"[ERROR extracting diagram code: {e}]"
-            collected_errors.append(diagram_code)
+    if isinstance(diagram_code, str) and diagram_code.strip():
+        svg = render_diagram_from_code(diagram_code)
+    else:
+        print("Failed to svg render:", diagram_code)
 
     substituted = build_debug_yaml(parsed, generated_params, substituted)
     substituted = substituted.replace("\\n", "\n")
