@@ -325,6 +325,13 @@ class Skill(models.Model):
         # print("TEMPLATE COUNT:", self.id, total)
         return total
 
+    def validated_count(self):
+        return self.template_set.filter(validated=True).count()
+
+    def unvalidated_count(self):
+        return self.template_set.filter(validated=False).count()
+
+
 
 class StudentSkillMatrix(models.Model):
     student = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -385,6 +392,7 @@ class Template(models.Model):
 
     curriculum = models.JSONField(default=list, blank=True)
     skill = models.ForeignKey(Skill, null=True, on_delete=models.SET_NULL)
+    validated = models.BooleanField(default=False)
 
     # --- Workflow state ---
     STATUS_CHOICES = [

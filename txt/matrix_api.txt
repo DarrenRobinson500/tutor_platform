@@ -1,0 +1,36 @@
+    @action(detail=False, methods=["get"], permission_classes=[AllowAny])
+    def matrix(self, request):
+        matrix = get_matrix_cache()  # fast, full matrix
+        grade = request.query_params.get("grade")
+        student_id = request.query_params.get("student_id")
+
+        # ----------------------------------------
+        # Build mastery map if student_id provided
+        # ----------------------------------------
+        mastery_map = {}
+
+        if student_id:
+            rows = StudentSkillMatrix.objects.filter(student_id=student_id)
+
+            for row in rows:
+                mastery_map[row.skill_id] = {
+                    "mastery": row.mastery,
+                    "competence_label": mastery_label(row.mastery)
+                }
+
+        # ----------------------------------------
+        # Apply grade filtering if needed
+        # ----------------------------------------
+        if grade and grade != "All":
+            filtered = filter_matrix_by_grade(matrix, grade)
+            return Response({
+                "grades": matrix["grades"],
+                "skills": filtered,
+                "mastery": mastery_map,
+            })
+
+        return Response({
+            "grades": matrix["grades"],
+            "skills": matrix["skills"],
+            "mastery": mastery_map,
+        })

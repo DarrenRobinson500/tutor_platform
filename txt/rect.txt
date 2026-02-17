@@ -1,42 +1,54 @@
-export interface RectDiagram {
-  type: "Rect";
-  x: number;
-  y: number;
-  pos: [number, number];
-}
+import re
+from dataclasses import dataclass
+from typing import Optional, Tuple
 
-export function parseRect(line: string): RectDiagram | null {
-  const regex =
-    /Rect\s*\(\s*x:\s*([^,]+)\s*,\s*y:\s*([^,]+)\s*,\s*pos:\s*\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)\s*\)/;
+DIAGRAM_TYPE = "Rect"
 
-  const match = line.match(regex);
-  if (!match) return null;
-
-  return {
-    type: "Rect",
-    x: parseFloat(match[1].trim()),
-    y: parseFloat(match[2].trim()),
-    pos: [parseFloat(match[3]), parseFloat(match[4])],
-  };
-}
+@dataclass
+class RectDiagram:
+    type: str
+    x: float
+    y: float
+    pos: Tuple[float, float]
 
 
-export function renderRect({ x, y, pos }: RectDiagram): string {
-  const [px, py] = pos;
+RECT_REGEX = re.compile(
+    r"Rect\s*\(\s*x:\s*([^,]+)\s*,\s*y:\s*([^,]+)\s*,\s*pos:\s*\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)\s*\)"
+)
 
-  // SVG <rect> uses top-left corner, so convert centre → corner
-  const x0 = px - x / 2;
-  const y0 = py - y / 2;
+def parse(line: str) -> Optional[RectDiagram]:
+    print("Rect parse")
+    match = RECT_REGEX.match(line)
+    if not match:
+        print("Rect Regex failed")
+        return None
 
-  return `
+    x = float(match.group(1).strip())
+    y = float(match.group(2).strip())
+    px = float(match.group(3))
+    py = float(match.group(4))
+
+    return RectDiagram(type="Rect", x=x, y=y, pos=(px, py))
+
+
+def render(rect: RectDiagram) -> str:
+    x, y = rect.x, rect.y
+    px, py = rect.pos
+
+    # Convert centre → top-left corner
+    x0 = px - x / 2
+    y0 = py - y / 2
+
+    result =  f"""
     <rect
-      x="${x0}"
-      y="${y0}"
-      width="${x}"
-      height="${y}"
-      fill="none"
-      stroke="black"
-      stroke-width="0.5"
+        x="{x0}"
+        y="{y0}"
+        width="{x}"
+        height="{y}"
+        fill="none"
+        stroke="black"
+        stroke-width="0.5"
     />
-  `;
-}
+    """
+
+    return result

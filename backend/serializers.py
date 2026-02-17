@@ -14,8 +14,7 @@ class SkillSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Skill
-        fields = ["id", "parent_id", "code", "description", "grades", "order_index", "children_count", "template_count"]
-        # fields = ["id", "parent", "code", "description", "grades", "order_index", "children", "children_count", "template_count"]
+        fields = ["id", "parent_id", "code", "description", "grades", "order_index", "children_count", "template_count", "validated_count", "unvalidated_count",]
 
 # class SkillDetailSerializer(serializers.ModelSerializer):
 #     children = SkillSerializer(many=True, read_only=True)

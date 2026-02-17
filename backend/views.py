@@ -212,13 +212,21 @@ class TemplateViewSet(viewsets.ModelViewSet):
     serializer_class = TemplateSerializer
     permission_classes = [AllowAny]
 
+    @action(detail=True, methods=['post'])
+    def toggle_validated(self, request, pk=None):
+        template = self.get_object()
+        template.validated = not template.validated
+        template.save()
+        update_matrix_cache_for_count(template.skill_id)
+
+        return Response({"validated": template.validated})
+
     @action(detail=False, methods=["post"])
     def preview(self, request):
 
         # 1. Content-based preview (TemplateEditorPage)
         content = request.data.get("content")
         if content:
-            print("Preview - 1")
             result = generate_preview_from_content(content)
             return Response(
                 {"ok": result["ok"], "preview": result["preview"], "error": result["error"]},
@@ -242,7 +250,6 @@ class TemplateViewSet(viewsets.ModelViewSet):
                 }, status=404)
 
             result = generate_values_and_question(first.id)
-            print("Preview - 2")
             print(qs)
             print(result)
             return Response({
@@ -256,14 +263,12 @@ class TemplateViewSet(viewsets.ModelViewSet):
         template_id = request.data.get("templateId") or request.data.get("id")
         if template_id:
             result = generate_values_and_question(template_id)
-            print("Preview - 3")
             return Response(
                 {"ok": result["ok"], "preview": result["preview"], "error": result["error"]},
                 status=200 if result["ok"] else 400
             )
 
         # 4. Fallback
-        print("Preview - 4")
         return Response(
             {"ok": False, "error": "No valid preview parameters provided"},
             status=400
@@ -298,7 +303,7 @@ class TemplateViewSet(viewsets.ModelViewSet):
 
         # Return ONLY the first created template
         first = created_templates[0]
-        update_matrix_cache_for_template_count(skill_id)
+        update_matrix_cache_for_count(skill_id)
 
         return Response({
             "id": first.id,
@@ -650,7 +655,7 @@ class TutorViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["get"])
     def weekly_slots(self, request, pk=None):
-        start = time.perf_counter()
+        # start = time.perf_counter()
 
         user = self.get_object()
         tutor = user.get_tutor_profile()
@@ -674,7 +679,7 @@ class TutorViewSet(viewsets.ModelViewSet):
         # Use cached version
         week_data = get_cached_weekly_slots(tutor, week_start, student)
 
-        print(f"Weekly slots build took {time.perf_counter() - start:.4f} seconds")
+        # print(f"Weekly slots build took {time.perf_counter() - start:.4f} seconds")
 
         return Response({"week": week_data}, status=200)
 
@@ -693,13 +698,13 @@ class TutorViewSet(viewsets.ModelViewSet):
 
         student_id = request.data["student_id"]
         student = User.objects.get(pk=student_id)
-        date = request.data["date"]
-        time = request.data["time"]
+        date_requested = request.data["date"]
+        time_requested = request.data["time"]
         repeat = request.data.get("repeat_weekly", False)
 
         # Parse date + time
-        date_dt = datetime.fromisoformat(date).date()
-        start_t = datetime.strptime(time, "%H:%M").time()
+        date_dt = datetime.fromisoformat(date_requested).date()
+        start_t = datetime.strptime(time_requested, "%H:%M").time()
 
         # Compute end time
         session_minutes = tutor.default_session_minutes

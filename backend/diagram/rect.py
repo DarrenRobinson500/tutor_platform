@@ -4,6 +4,8 @@ from typing import Optional, Tuple
 
 DIAGRAM_TYPE = "Rect"
 
+# Rect(x: 5, y: 5, pos: (0, 0))
+
 @dataclass
 class RectDiagram:
     type: str

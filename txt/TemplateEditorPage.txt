@@ -1,0 +1,427 @@
+import debounce from "lodash.debounce";
+
+import { useEffect, useState, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { TemplateMetadataBar } from "./components/TemplateMetadataBar";
+import { EditorPanel } from "./components/EditorPanel";
+import { ValuesPanel } from "./components/ValuesPanel";
+import { PreviewPanel } from "./components/PreviewPanel";
+import { Layout } from "./components/Layout";
+import { apiFetch } from "../utils/apiFetch"
+
+import { useTemplateApi } from "../api/useTemplateApi";
+import { useValidationApi } from "../api/useValidationApi";
+import type { TemplateMetadata } from "../types/TemplateMetadata";
+
+interface PreviewResponse {
+  question: string;
+  answers: any[];
+  params: Record<string, any>;
+  solution: string;
+  diagram_svg: string;
+  diagram_code: string;
+  substituted_yaml: string;
+}
+
+export function TemplateEditorPage() {
+  const [filteredList, setFilteredList] = useState<any[]>([]);
+  const [currentIndex, setCurrentIndex] = useState<number>(0);
+  const [skills, setSkills] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<string[]>([]);
+  const emptyMetadata = {
+    id: null,
+    name: "",
+    description: "",
+    subject: "",
+    topic: "",
+    subtopic: "",
+    difficulty: "",
+    grade: "",
+    tags: [],
+    curriculum: [],
+    status: "draft",
+    version: 1,
+    skill: null,
+    validated: false,
+  };
+
+  const navigate = useNavigate();
+  const params = useParams();
+  const { id } = params;
+  const [metadata, setMetadata] = useState<TemplateMetadata>(emptyMetadata);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [isSaving, setIsSaving] = useState(false);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [saveError, setSaveError] = useState<string | null>(null);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [content, setContent] = useState<string>("");
+  const [validationResult, setValidationResult] = useState<any>(null);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [previewResult, setPreviewResult] = useState<any>(null);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [preview, setPreview] = useState<PreviewResponse | null>(null);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { getTemplate, saveTemplate } = useTemplateApi();
+  const { validateTemplate } = useValidationApi();
+
+  function buildMetadataFromTemplate(tpl: any): TemplateMetadata {
+    return {
+      id: tpl.id ?? null,
+      name: tpl.name ?? "",
+      description: tpl.description ?? "",
+      subject: tpl.subject ?? "",
+      topic: tpl.topic ?? "",
+      subtopic: tpl.subtopic ?? "",
+      difficulty: tpl.difficulty ?? "",
+      grade: tpl.grade ?? null,
+      tags: tpl.tags ?? [],
+      curriculum: tpl.curriculum ?? [],
+      status: tpl.status ?? "draft",
+      version: tpl.version ?? 1,
+      skill: tpl.skill ?? null,
+      validated: tpl.validated ?? false,
+    };
+  }
+
+  // Handle Validated Toggler
+  const handleToggleValidated = async () => {
+    if (!metadata.id) return;
+
+    const res = await apiFetch(`/api/templates/${metadata.id}/toggle_validated/`, {
+      method: "POST",
+    });
+
+    if (!res.ok) {
+      alert("Failed to toggle validation");
+      return;
+    }
+
+    const data = await res.json();
+
+    setMetadata(prev => ({
+      ...prev,
+      validated: data.validated,
+    }));
+  };
+
+
+  // Debounced function
+  const debouncedPreview = useRef(
+    debounce(async (content: string) => {
+      const res = await apiFetch("/api/templates/preview/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+
+      const data = await res.json();
+      console.log("Preview response:", data.preview);
+      console.log("Sending content to preview:", content);
+
+      setPreview(data.preview);
+      if (data.preview) {
+        setMetadata(prev => ({
+          ...prev,
+          skill: data.preview.skill ?? prev.skill,
+          grade: data.preview.grade ?? prev.grade,
+          difficulty: data.preview.difficulty ?? prev.difficulty,
+        }));
+      }
+
+    }, 400)
+  ).current;
+
+  useEffect(() => {
+    async function load() {
+      if (!id) return;
+
+      const tpl = await getTemplate(id);
+      if (!tpl) return;
+
+      setContent(tpl.content);
+      setMetadata(buildMetadataFromTemplate(tpl));
+
+      const res = await apiFetch("/api/templates/preview/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: tpl.content }),
+      });
+
+      const data = await res.json();
+      setPreview(data.preview);
+    }
+    load();
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  useEffect(() => {
+    async function loadSkills() {
+      const grade = metadata.grade ?? "";
+      const res = await apiFetch(`/api/skills/leaf/?grade=${grade}`);
+      const data = await res.json();
+      setSkills(data);
+    }
+    loadSkills();
+  }, [metadata.grade]);
+
+  useEffect(() => {
+    const uniqueSubjects = Array.from(
+      new Set(filteredList.map(t => t.subject).filter(Boolean))
+    );
+    setSubjects(uniqueSubjects);
+    console.log("Filtered templates:", filteredList);
+
+  }, [filteredList]);
+
+  const handleSubjectChange = (subject: string) => {
+    setMetadata(prev => ({ ...prev, subject }));
+
+    if (!subject) {
+      // Reset to full filtered list
+      setCurrentIndex(0);
+      if (filteredList.length > 0) {
+        navigate(`/templates/${filteredList[0].id}`);
+      }
+      return;
+    }
+
+    // Filter templates by subject
+    const subjectFiltered = filteredList.filter(t => t.subject === subject);
+
+    if (subjectFiltered.length > 0) {
+      setCurrentIndex(0);
+      navigate(`/templates/${subjectFiltered[0].id}`);
+    }
+  };
+
+
+  function handleContentChange(newContent: string) {
+    setContent(newContent);
+    debouncedPreview(newContent);
+  }
+
+  const handleToSkill = () => {
+    if (metadata.skill) {
+      navigate(`/skills/${metadata.skill}`);
+    }
+  };
+
+  // Handler - Save
+  const handleSave = async () => {
+    console.log("Save button clicked (TemplateEditorPage) — metadata:", metadata);
+
+  // Build a clean payload that matches the Django Template model
+  const payload = {
+    name: metadata.name || "",
+    description: metadata.description || "",
+    subject: metadata.subject || "",
+    topic: metadata.topic || "",
+    subtopic: metadata.subtopic || "",
+    difficulty: metadata.difficulty || "",
+    grade: metadata.grade || null,
+    tags: metadata.tags || [],
+    curriculum: metadata.curriculum || [],
+    skill: metadata.skill || null,
+    content
+  };
+
+  // CREATE
+  if (!metadata.id) {
+    console.log("Creating new template with payload:", payload);
+
+    const res = await apiFetch("/api/templates/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("Template CREATE failed:", errorText);
+      alert("Template creation failed. Check console for details.");
+      return;
+    }
+
+    const data = await res.json();
+    console.log("Template created:", data);
+
+    // Store the new ID
+    setMetadata(prev => ({ ...prev, id: data.id }));
+
+    // Navigate to the new template page
+    navigate(`/templates/${data.id}`);
+    return;
+  }
+
+  // UPDATE
+  console.log("Updating existing template:", metadata.id);
+
+  const res = await apiFetch(`/api/templates/${metadata.id}/`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error("Template UPDATE failed:", errorText);
+    alert("Template update failed. Check console for details.");
+    return;
+  }
+
+  const data = await res.json();
+  console.log("Template updated:", data);
+
+  // Update metadata (in case backend modifies anything)
+  setMetadata(prev => ({ ...prev, ...data }));
+};
+
+  const handlePreview = async () => {
+    setPreviewResult({
+      text: "This is a preview of your template.\n\nMore features coming soon."
+    });
+  };
+
+  const handleMetadataChange = async (updated: Partial<TemplateMetadata>) => {
+    const newMeta = { ...metadata, ...updated };
+    setMetadata(newMeta);
+
+    // If any of the 3 filters changed, reload the list
+    if (updated.skill || updated.grade || updated.difficulty) {
+      const params = new URLSearchParams({
+        skill: String(newMeta.skill ?? ""),
+        grade: String(newMeta.grade ?? ""),
+        difficulty: String(newMeta.difficulty ?? ""),
+      });
+
+      if (updated.grade) {
+        const res = await apiFetch(`/api/skills/leaf/?grade=${updated.grade}`);
+        const data = await res.json();
+        setSkills(data);
+      }
+
+      const res = await apiFetch(`/api/templates/filtered/?${params.toString()}`);
+      const list = await res.json();
+
+      setFilteredList(list);
+      setCurrentIndex(0);
+
+      if (list.length > 0) {
+        navigate(`/templates/${list[0].id}`);
+      }
+    }
+  };
+
+  const goNext = () => {
+    if (currentIndex < filteredList.length - 1) {
+      const nextIndex = currentIndex + 1;
+      setCurrentIndex(nextIndex);
+      navigate(`/templates/${filteredList[nextIndex].id}`);
+    }
+  };
+
+  const goPrev = () => {
+    if (currentIndex > 0) {
+      const prevIndex = currentIndex - 1;
+      setCurrentIndex(prevIndex);
+      navigate(`/templates/${filteredList[prevIndex].id}`);
+    }
+  };
+
+  useEffect(() => {
+    console.log("FULL PREVIEW OBJECT:", preview);
+  }, [preview]);
+
+
+
+
+  return (
+<Layout>
+  <div className="template-editor-page">
+
+    {/* Top metadata + actions */}
+    <TemplateMetadataBar
+      metadata={metadata}
+      onChange={handleMetadataChange}
+      onSave={handleSave}
+      onValidate={handleToggleValidated}
+      onPreview={handlePreview}
+      onToSkill={handleToSkill}
+      isSaving={isSaving}
+      saveError={saveError}
+      saveSuccess={saveSuccess}
+      onNext={goNext}
+      onPrev={goPrev}
+      skills={skills}
+      subjects={subjects}
+      onSubjectChange={handleSubjectChange}
+    />
+
+    <div className="container-fluid">
+      <div className="row" style={{ height: "70vh" }}>
+
+        {/* Panel 1: Editor (Template source) */}
+        <div className="col-md-4 d-flex flex-column" style={{ height: "100%" }}>
+          <div className="card shadow-sm flex-grow-1">
+            <div className="card-header">Question Definition</div>
+            <div
+              className="card-body p-0 d-flex flex-column"
+              style={{ overflow: "hidden" }}
+            >
+              <EditorPanel
+                content={content}
+                onChange={handleContentChange}
+                validation={validationResult}
+                templateId={id ?? null}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Panel 2: Values (Substituted YAML) */}
+        <div className="col-md-4 d-flex flex-column" style={{ height: "100%" }}>
+          <div className="card shadow-sm flex-grow-1">
+            <div className="card-header">Question Definition (Values Populated)</div>
+            <div className="card-body overflow-auto">
+              <ValuesPanel
+                substitutedYaml={preview?.substituted_yaml ?? null}
+                diagramCode={preview?.diagram_code ?? null}
+                backendSvg={preview?.diagram_svg ?? null}
+              />
+
+            </div>
+          </div>
+        </div>
+
+        {/* Panel 3: Preview (Student view + Diagram) */}
+        <div className="col-md-4 d-flex flex-column" style={{ height: "100%" }}>
+          <div className="card shadow-sm flex-grow-1">
+            <div className="card-header">Student Preview</div>
+            <div
+              className="card-body p-2 d-flex flex-column"
+              style={{ overflow: "hidden" }}
+            >
+              <PreviewPanel
+                preview={preview}
+                mode="editor"
+                templateContent={content}
+                onEditorNext={(newPreview) => {
+                  setPreview(newPreview);
+                  goNext();
+                }}
+              />
+
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</Layout>
+  );
+}

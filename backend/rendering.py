@@ -266,7 +266,8 @@ def render_template_preview(parsed):
     if isinstance(diagram_code, str) and diagram_code.strip():
         svg = render_diagram_from_code(diagram_code)
     else:
-        print("Failed to svg render:", diagram_code)
+        print("Failed to svg render:", diagram_code, isinstance(diagram_code, str))
+        diagram_code = ""
 
     substituted = build_debug_yaml(parsed, generated_params, substituted)
     substituted = substituted.replace("\\n", "\n")

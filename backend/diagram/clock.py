@@ -5,6 +5,8 @@ from typing import Optional, Tuple
 
 DIAGRAM_TYPE = "Clock"
 
+# Clock(time: 10:00, pos: (0, 0))
+
 @dataclass
 class ClockDiagram:
     type: str
