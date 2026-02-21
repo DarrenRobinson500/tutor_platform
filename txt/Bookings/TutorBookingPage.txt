@@ -1,0 +1,246 @@
+import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { Layout } from "./components/Layout";
+import { WeeklyBookingCalendar } from "./components/WeeklyBookingCalendar";
+import { apiFetch } from "../utils/apiFetch";
+
+interface StudentInfo {
+  user_id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  year_level: string;
+  area_of_study: string;
+  next_ad_hoc_booking: any;
+  next_weekly_booking: any;
+}
+
+export function TutorBookingPage() {
+  const { id } = useParams(); // tutor id
+  const [students, setStudents] = useState<StudentInfo[]>([]);
+  const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
+
+  const [weeklyAvailability, setWeeklyAvailability] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  const [message, setMessage] = useState("");
+
+  // -----------------------------
+  // Load tutor booking data
+  // -----------------------------
+  useEffect(() => {
+    if (!id) return;
+
+    const load = async () => {
+      setLoading(true);
+      try {
+        const res = await apiFetch(`/api/tutors/${id}/booking/`);
+        const data = await res.json();
+
+        setStudents(data.students || []);
+        setWeeklyAvailability(data.weekly_availability || {});
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, [id]);
+
+  // -----------------------------
+  // Handle ad hoc booking
+  // -----------------------------
+  const handleSelectSlot = async (day: string, start: string, end: string) => {
+    if (!selectedStudentId) {
+      setMessage("Please select a student first.");
+      return;
+    }
+
+    setMessage("Booking…");
+
+    const payload = {
+      student_id: selectedStudentId,
+      date: day,
+      time: start,
+      repeat_weekly: false,
+    };
+
+    try {
+      const res = await apiFetch(`/api/tutors/${id}/check_and_book/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (data.created > 0) {
+        setMessage("Appointment booked.");
+      } else {
+        setMessage("Could not book appointment.");
+      }
+
+      // Reload availability + students
+      const reload = await apiFetch(`/api/tutors/${id}/booking/`);
+      const fresh = await reload.json();
+
+      setWeeklyAvailability(fresh.weekly_availability);
+      setStudents(fresh.students);
+
+    } catch (err) {
+      setMessage("Error booking appointment.");
+    }
+  };
+
+  // -----------------------------
+  // Handle weekly booking
+  // -----------------------------
+  const handleBookWeekly = async (weekday: number, time: string) => {
+    if (!selectedStudentId) {
+      setMessage("Please select a student first.");
+      return;
+    }
+
+    setMessage("Booking weekly session…");
+
+    try {
+      const res = await apiFetch(`/api/tutors/${id}/create_weekly_booking/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          student_id: selectedStudentId,
+          weekday,
+          time,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        setMessage("Weekly session booked.");
+      } else {
+        setMessage(data.error || "Could not book weekly session.");
+      }
+
+      // Reload availability + students
+      const reload = await apiFetch(`/api/tutors/${id}/booking/`);
+      const fresh = await reload.json();
+
+      setWeeklyAvailability(fresh.weekly_availability);
+      setStudents(fresh.students);
+
+    } catch (err) {
+      setMessage("Error booking weekly session.");
+    }
+  };
+
+  const handleDeleteWeeklyBooking = async (weekday: number, time: string) => {
+    if (!id) return;
+
+    await apiFetch(`/api/tutors/${id}/delete_weekly_booking/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ weekday, time }),
+    });
+
+    // Reload availability + students
+    const reload = await apiFetch(`/api/tutors/${id}/booking/`);
+    const fresh = await reload.json();
+
+    setWeeklyAvailability(fresh.weekly_availability);
+    setStudents(fresh.students);
+  };
+
+  function formatTime(t: any) {
+    if (!t || typeof t !== "string" || !t.includes(":")) {
+      return "";
+    }
+
+    const [h, m] = t.split(":").map(Number);
+    const date = new Date();
+    date.setHours(h, m);
+    return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  }
+
+  return (
+    <Layout>
+      <div className="container mt-4">
+        <h1>Existing Bookings</h1>
+          {/* Weekly Overview */}
+          {weeklyAvailability && (
+            <div className="mt-4">
+          
+              <div className="row text-center fw-bold mt-3">
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+                  <div key={d} className="col">{d}</div>
+                ))}
+              </div>
+          
+              <div className="row mt-2">
+                {Array.from({ length: 7 }).map((_, weekday) => {
+                  const day = weeklyAvailability[weekday];
+                  const bookings = day?.bookings || [];
+          
+                  return (
+                    <div key={weekday} className="col border p-2" style={{ minHeight: "80px" }}>
+                      {bookings.length === 0 && (
+                        <div className="text-muted small">—</div>
+                      )}
+          
+                      {bookings.map((b: any, idx: number) => (
+                        <div key={idx} className="small">
+                          {b.start_time ? formatTime(b.start_time) : ""}: {b.student_name}
+          
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+        <h1>New Bookings</h1>
+
+        {/* Student dropdown */}
+        <div className="mb-4">
+          <label className="form-label" style={{ fontWeight: 600 }}>
+            Select a student
+          </label>
+          <select
+            className="form-select"
+            value={selectedStudentId || ""}
+            onChange={(e) => setSelectedStudentId(Number(e.target.value))}
+          >
+            <option value="">-- Choose a student --</option>
+            {students.map((s) => (
+              <option key={s.user_id} value={s.user_id}>
+                {s.first_name} {s.last_name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {message && (
+          <div className="alert alert-info">{message}</div>
+        )}
+
+        {loading && (
+          <div className="text-center my-3">
+            <div className="spinner-border text-primary" role="status" />
+          </div>
+        )}
+
+        {/* WeeklyBookingCalendar */}
+        {!loading && weeklyAvailability && (
+          <WeeklyBookingCalendar
+            availability={weeklyAvailability}
+            mode="tutor"
+            onBook={handleBookWeekly}
+            onDelete={handleDeleteWeeklyBooking}
+          />
+        )}
+      </div>
+    </Layout>
+  );
+}

@@ -1,0 +1,186 @@
+class User(AbstractUser):
+    ROLE_CHOICES = [
+        ("student", "Student"),
+        ("tutor", "Tutor"),
+        ("parent", "Parent"),
+        ("admin", "Admin"),
+    ]
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    default_session_minutes = models.IntegerField(default=60)
+    buffer_minutes = models.IntegerField(default=15)
+
+    def get_student_profile(self):
+        if self.role == "student":
+            profile = StudentProfile.objects.filter(user=self).first()
+        if not profile and self.role == "student":
+            profile = StudentProfile.objects.create(user=self)
+        return profile
+
+    def get_tutor(self):
+        if self.role == "tutor": return self
+        if self.role == "student":
+            link = TutorStudent.objects.filter(student=self).first()
+            if link: return link.tutor
+        if self.role == "parent":
+            child_link = ParentChild.objects.filter(parent=self).first()
+            if child_link: tutor_link = TutorStudent.objects.filter(student=child_link.child).first()
+            if tutor_link: return TutorProfile.objects.filter(tutor=tutor_link.tutor).first()
+        return None
+
+    def get_tutor_profile(user):
+        if user.role == "tutor": return TutorProfile.objects.filter(tutor=user).first()
+        if user.role == "student":
+            link = TutorStudent.objects.filter(student=user).first()
+            if not link:
+                return None
+            return TutorProfile.objects.filter(tutor=link.tutor).first()
+        if user.role == "parent":
+            child_link = ParentChild.objects.filter(parent=user).first()
+            if not child_link:
+                return None
+            tutor_link = TutorStudent.objects.filter(student=child_link.child).first()
+            if not tutor_link:
+                return None
+            return TutorProfile.objects.filter(tutor=tutor_link.tutor).first()
+        return None
+
+    def next_booking(self):
+        return (
+            Appointment.objects
+            .filter(student=self, start_datetime__gt=now)
+            .order_by("start_datetime")
+            .first()
+        )
+
+    def next_weekly_booking(self):
+        if self.role != "student":
+            return None
+
+        weekly_bookings = WeeklyBooking.objects.filter(student=self)
+        if not weekly_bookings.exists():
+            return None
+
+        now_dt = tz_now()
+        today = now_dt.date()
+        weekday_today = today.weekday()
+
+        next_booking = None
+        next_start_dt = None
+
+        for wb in weekly_bookings:
+            # Compute the next occurrence date
+            days_ahead = (wb.weekday - weekday_today) % 7
+            next_date = today + timedelta(days=days_ahead)
+            # print("Weekly booking (weekday):", wb.weekday)
+
+
+            # Build datetime for next occurrence
+            local_tz = timezone.get_default_timezone()
+            # print("Local tz:", local_tz)
+            next_start = datetime.combine(next_date, wb.start_time)
+            next_start = timezone.make_aware(next_start, local_tz, is_dst=None)
+            next_start = timezone.localtime(next_start)
+
+            # If the time today has already passed, jump to next week
+            if next_start <= now_dt:
+                next_start += timedelta(days=7)
+
+            # Track earliest upcoming weekly booking
+            if next_start_dt is None or next_start < next_start_dt:
+                next_start_dt = next_start
+                next_booking = wb
+
+        if not next_booking:
+            return None
+
+        # Compute end time using tutor's session length
+        tutor = self.get_tutor()
+        session_minutes = tutor.default_session_minutes if tutor else 60
+
+        return {
+            "id": next_booking.id,
+            "start": next_start_dt,
+            "end": next_start_dt + timedelta(minutes=session_minutes),
+        }
+
+    def weekly_booking_slots(self):
+        if self.role != "tutor": return {}
+        availability = TutorAvailability.objects.filter(tutor=self)
+        weekly_bookings = WeeklyBooking.objects.filter(tutor=self)
+        booked = defaultdict(set)
+        for wb in weekly_bookings:
+            booked[wb.weekday].add(wb.start_time)
+        result = {i: [] for i in range(7)}
+        print("Booked:", booked)
+
+        for av in availability:
+            weekday = av.weekday
+            start = datetime.combine(datetime.today(), av.start_time)
+            end = datetime.combine(datetime.today(), av.end_time)
+
+            current = start
+            while current + timedelta(minutes=15) <= end:
+                slot_time = current.time()
+                if slot_time not in booked[weekday]:
+                    result[weekday].append(slot_time)
+                current += timedelta(minutes=15)
+
+        print("Weekly booking slots:", result)
+        return result
+
+    def create_weekly_booking(self, weekday: int, start_time: time):
+        """
+        Creates a weekly recurring booking for this student.
+
+        - Only valid for students
+        - Uses tutor's default session length to compute end_time
+        - Prevents duplicates and overlapping weekly bookings
+        - Returns the created WeeklyBooking instance
+        """
+
+        if self.role != "student":
+            raise ValueError("Only students can create weekly bookings.")
+
+        tutor = self.get_tutor()
+        if not tutor:
+            raise ValueError("Student does not have an assigned tutor.")
+
+        # Compute end time using tutor's session length
+        session_minutes = tutor.default_session_minutes
+        start_dt = datetime.combine(datetime.today(), start_time)
+        end_dt = start_dt + timedelta(minutes=session_minutes)
+        end_time = end_dt.time()
+
+        # Prevent duplicate weekly bookings
+        exists = WeeklyBooking.objects.filter(
+            student=self,
+            tutor=tutor,
+            weekday=weekday,
+            start_time=start_time,
+        ).exists()
+
+        if exists:
+            raise ValueError("A weekly booking already exists for this time.")
+
+        # Prevent overlapping weekly bookings for this student
+        overlapping = WeeklyBooking.objects.filter(
+            student=self,
+            tutor=tutor,
+            weekday=weekday,
+            start_time__lt=end_time,
+            end_time__gt=start_time,
+        ).exists()
+
+        if overlapping:
+            raise ValueError("This weekly booking overlaps with an existing one.")
+
+        # Create the weekly booking
+        wb = WeeklyBooking.objects.create(
+            student=self,
+            tutor=tutor,
+            weekday=weekday,
+            start_time=start_time,
+            end_time=end_time,
+        )
+
+        return wb

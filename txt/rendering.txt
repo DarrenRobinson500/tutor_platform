@@ -22,10 +22,10 @@ def substitute_params_and_expressions(text, params):
         # Step 2: Evaluate the substituted expression
         try:
             value = evaluate_int_expression(substituted_expr, {})
-            # print("EVALUATED VALUE:", value)
+            print("EVALUATED VALUE:", value)
             return str(value)
         except Exception as e:
-            # print("EVAL ERROR:", e)
+            print("EVAL ERROR:", e)
             return f"{{{{ {expr} }}}}"
 
     result = re.sub(pattern, repl, text)
@@ -87,7 +87,6 @@ def generate_param_values(params):
         generated[key] = None
 
     # debug_print_params(generated)
-    print("Generated params:", generated)
     return generated
 
 def evaluate_rule_expression(expr, params):
@@ -184,24 +183,6 @@ def render_template_preview(parsed):
     answers = []
 
     for ans in raw_answers:
-        if "logic" in ans:
-            condition = ans["logic"]
-            print("Condition:", condition)
-            print("Generated params:", generated_params)
-            try:
-                is_true = evaluate_rule_expression(condition, generated_params)
-            except Exception:
-                is_true = False
-
-            # Mark correct only if BOTH:
-            # 1. YAML says correct: true
-            # 2. Condition evaluates to true
-            answers.append({
-                "text": ans.get("text", ""),
-                "correct": ans.get("correct", False) and is_true
-            })
-            continue
-
         if "int" in ans:
             expr = ans["int"]
             value = evaluate_int_expression(expr, generated_params)

@@ -214,11 +214,6 @@ class TemplateViewSet(viewsets.ModelViewSet):
     serializer_class = TemplateSerializer
     permission_classes = [AllowAny]
 
-    @action(detail=False, methods=["get"])
-    def subjects(self, request):
-        subjects = Template.objects.values_list("subject", flat=True).distinct()
-        return Response(list(subjects))
-
     @action(detail=True, methods=['post'])
     def toggle_validated(self, request, pk=None):
         template = self.get_object()
@@ -554,20 +549,6 @@ class TutorViewSet(viewsets.ModelViewSet):
         })
 
     @action(detail=True, methods=["get"])
-    def booking(self, request, pk=None):
-        tutor_user = self.get_object()
-        tutor = tutor_user.get_tutor_profile()
-
-        students = get_cached_students_for_tutor(tutor_user)
-        weekly_availability = get_cached_weekly_availability(tutor_user)
-        print("Weekly Availability", weekly_availability[3])
-
-        return Response({
-            "students": students,
-            "weekly_availability": weekly_availability,
-        })
-
-    @action(detail=True, methods=["get"])
     def templates(self, request, pk=None):
         tutor = self.get_object()
         templates = Template.objects.filter(created_by=tutor)
@@ -605,58 +586,6 @@ class TutorViewSet(viewsets.ModelViewSet):
             "email": new_tutor.email,
             "password": password
         })
-
-    @action(detail=True, methods=["get"])
-    def weekly_availability(self, request, pk=None):
-        tutor = self.get_object()
-        data = get_cached_weekly_availability(tutor)
-        return Response(data)
-
-    @action(detail=True, methods=["POST"])
-    def edit_weekly_booking(self, request, pk=None):
-        tutor = self.get_object()
-
-        weekday = request.data.get("weekday")
-        old_time = request.data.get("old_time")
-        new_time = request.data.get("new_time")
-        duration = int(request.data.get("duration_minutes", 60))
-        student_id = request.data.get("student_id")
-
-        if weekday is None or not old_time or not new_time:
-            return Response({"ok": False, "error": "Missing required fields."})
-
-        # Parse times
-        try:
-            old_start = datetime.strptime(old_time, "%H:%M").time()
-            new_start = datetime.strptime(new_time, "%H:%M").time()
-        except ValueError:
-            return Response({"ok": False, "error": "Invalid time format."})
-
-        # Compute new end time
-        new_end_dt = datetime.combine(date.today(), new_start) + timedelta(minutes=duration)
-        new_end = new_end_dt.time()
-
-        # Find the existing booking
-        try:
-            booking = WeeklyBooking.objects.get(
-                tutor=tutor,
-                weekday=weekday,
-                start_time=old_start,
-            )
-        except WeeklyBooking.DoesNotExist:
-            print("Edit - Couldn't find weekly booking")
-            return Response({"ok": False, "error": "Booking not found."})
-
-        # Update fields
-        booking.start_time = new_start
-        booking.end_time = new_end
-        print("Edit:", booking, booking.start_time, booking.end_time)
-
-        booking.save()
-        print("Booking edits were saved")
-        invalidate_weekly_slots_cache_for_tutor(tutor.id)
-
-        return Response({"ok": True})
 
     @action(detail=True, methods=["get"])
     def availability(self, request, pk=None):
@@ -762,64 +691,6 @@ class TutorViewSet(viewsets.ModelViewSet):
         tutor = TutorProfile.objects.get(tutor=user)
         serializer = TutorSerializer(tutor)
         return Response(serializer.data)
-
-    @action(detail=True, methods=["post"], url_path="create_weekly_booking")
-    def create_weekly_booking(self, request, pk=None):
-        tutor_user = self.get_object()  # the tutor in the URL
-        tutor_profile = tutor_user.get_tutor_profile()
-
-        student_id = request.data.get("student_id")
-        weekday = request.data.get("weekday")
-        time_str = request.data.get("time")
-        if isinstance(time_str, str) and len(time_str) >= 5: time_str = time_str[:5]
-        print("Create weekly appointment api:", student_id, weekday, time_str)
-
-        if student_id is None or weekday is None or time_str is None:
-            return Response(
-                {"error": "student_id, weekday, and time are required"},
-                status=400
-            )
-
-        try:
-            weekday = int(weekday)
-            if weekday < 0 or weekday > 6:
-                raise ValueError()
-        except ValueError:
-            return Response({"error": "weekday must be an integer 0–6"}, status=400)
-
-        # Parse time
-        try:
-            start_time = datetime.strptime(time_str, "%H:%M").time()
-        except ValueError:
-            return Response({"error": "Invalid time format. Use HH:MM"}, status=400)
-
-        try:
-            student = User.objects.get(id=student_id)
-        except User.DoesNotExist:
-            return Response({"error": "Student not found"}, status=404)
-
-        linked_tutor = student.get_tutor()
-        if not linked_tutor or linked_tutor.id != tutor_user.id:
-            return Response(
-                {"error": "This student is not assigned to this tutor"},
-                status=403
-            )
-
-        try:
-            wb = student.create_weekly_booking(weekday, start_time)
-        except ValueError as e:
-            return Response({"error": str(e)}, status=400)
-
-        invalidate_weekly_availability_cache_for_tutor(tutor_user.id)
-        return Response({
-            "ok": True,
-            "id": wb.id,
-            "weekday": wb.weekday,
-            "start_time": wb.start_time,
-            "end_time": wb.end_time,
-            "student_id": student.id,
-            "student_name": student.first_name,
-        })
 
     @action(detail=True, methods=["post"], url_path="check_and_book")
     def check_and_book(self, request, pk=None):
@@ -942,24 +813,15 @@ class StudentViewSet(viewsets.ModelViewSet):
         tutor_name = tutor_user.get_full_name() or tutor_user.username if tutor_user else None
         tutor_id = tutor_user.id if tutor_user else None
 
-        next_weekly = user.next_weekly_booking()
-        next_ad_hoc = user.next_booking()
+        # Next booking
+        next_booking = (Appointment.objects.filter(student=user, start_datetime__gte=timezone.now()).order_by("start_datetime").first())
 
-        next_weekly_data = None
-        if next_weekly:
-            next_weekly_data = {
-                "id": next_weekly["id"],
-                "start": next_weekly["start"].isoformat(),
-                "end": next_weekly["end"].isoformat(),
-            }
-            # print("Next weekly data:", next_weekly_data)
-
-        next_ad_hoc_data = None
-        if next_ad_hoc:
-            next_ad_hoc_data = {
-                "id": next_ad_hoc.id,
-                "start": next_ad_hoc.start_datetime,
-                "end": next_ad_hoc.end_datetime,
+        next_booking_data = None
+        if next_booking:
+            next_booking_data = {
+                "id": next_booking.id,
+                "start": next_booking.start_datetime,
+                "end": next_booking.end_datetime,
             }
 
         data = {
@@ -970,25 +832,10 @@ class StudentViewSet(viewsets.ModelViewSet):
             "tutor_name": tutor_name,
             "year_level": student_profile.year_level,
             "area_of_study": student_profile.area_of_study,
-            "next_weekly_booking": next_weekly_data,
-            "next_ad_hoc_booking": next_ad_hoc_data,
+            "next_booking": next_booking_data,
         }
 
         return Response(data)
-
-    @action(detail=True, methods=["get"])
-    def weekly_availability(self, request, pk=None):
-        student_profile = self.get_object()
-        student = student_profile.user
-
-        tutor = student.get_tutor()
-        if not tutor:
-            return Response({"error": "Student has no tutor assigned"}, status=400)
-
-        full = get_cached_weekly_availability(tutor)
-        safe = mask_weekly_availability_for_student(full, student.id)
-
-        return Response(safe)
 
     @action(detail=False, methods=["post"])
     def create_student(self, request):

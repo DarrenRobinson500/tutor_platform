@@ -11,11 +11,11 @@ def render_diagram_from_code(code: str) -> str:
     fragments = []
 
     for line in lines:
-        print("Render engine (line):", line)
+        # print("Render engine (line):", line)
         for diagram_type, module in DIAGRAM_REGISTRY.items():
             if line.startswith(diagram_type):
                 parsed = module.parse(line)
-                print("Render engine (parsed):", parsed)
+                # print("Render engine (parsed):", parsed)
                 if parsed:
                     fragments.append(module.render(parsed))
                 else:
@@ -27,6 +27,6 @@ def render_diagram_from_code(code: str) -> str:
 
     post = '</svg>'
 
-    print("SVG Engine:", body)
+    # print("SVG Engine:", body)
 
     return pre + str(body) + post

@@ -18,8 +18,6 @@ def get_cached_students_for_tutor(tutor):
         for link in links:
             student_user = link.student
             profile = student_user.get_student_profile()
-            next_ad_hoc = student_user.next_ad_hoc_booking()
-            next_weekly = student_user.next_weekly_booking()
 
             data.append({
                 "user_id": student_user.id,
@@ -29,8 +27,6 @@ def get_cached_students_for_tutor(tutor):
                 "email": student_user.email,
                 "year_level": profile.year_level,
                 "area_of_study": profile.area_of_study,
-                "next_ad_hoc_booking": next_ad_hoc,
-                "next_weekly_booking": next_weekly,
             })
 
         STUDENTS_CACHE[tutor_id] = data
@@ -73,42 +69,25 @@ def build_weekly_availability(tutor):
     Builds the full weekly availability structure for a tutor:
       - 15-minute availability slots
       - weekly bookings (with student names)
-      - booked slots removed for the full duration
-      - buffer time before and after bookings removed
-      - only start times where a full session fits and does not overlap
-        any blocked time are included
     """
 
+    # 1. Fetch availability windows
     availability = TutorAvailability.objects.filter(tutor=tutor)
+
+    # 2. Fetch weekly bookings
     bookings = WeeklyBooking.objects.filter(tutor=tutor).select_related("student")
-    print("Build weekly availability:\n", bookings)
 
-    session_minutes = tutor.default_session_minutes
-    session_delta = timedelta(minutes=session_minutes)
-
-    buffer_minutes = tutor.buffer_minutes
-    buffer_delta = timedelta(minutes=buffer_minutes)
-
+    # Build booking lookup
     booking_map = defaultdict(list)
-    booked_times = defaultdict(set)   # ALL 15-min increments inside booking+buffer
-
     for b in bookings:
         booking_map[b.weekday].append({
-            "start_time": b.start_time.strftime("%H:%M"),
-            "end_time": b.end_time.strftime("%H:%M"),
+            "start_time": b.start_time,
+            "end_time": b.end_time,
             "student_id": b.student.id,
             "student_name": b.student.first_name,
         })
 
-        # Booking duration + buffer before + buffer after
-        start_dt = datetime.combine(datetime.today(), b.start_time) - buffer_delta
-        end_dt = datetime.combine(datetime.today(), b.end_time) + buffer_delta
-
-        current = start_dt
-        while current < end_dt:
-            booked_times[b.weekday].add(current.time())
-            current += timedelta(minutes=15)
-
+    # 3. Expand availability into 15-minute slots
     result = {i: {"slots": [], "bookings": booking_map[i]} for i in range(7)}
 
     for av in availability:
@@ -118,23 +97,8 @@ def build_weekly_availability(tutor):
         end = datetime.combine(datetime.today(), av.end_time)
 
         current = start
-        # Only consider starts where the full session fits inside availability
-        while current + session_delta <= end:
-            slot_time = current.time()
-
-            # Check if ANY 15-min chunk of this session overlaps blocked times
-            conflict = False
-            check = current
-            session_end = current + session_delta
-            while check < session_end:
-                if check.time() in booked_times[weekday]:
-                    conflict = True
-                    break
-                check += timedelta(minutes=15)
-
-            if not conflict:
-                result[weekday]["slots"].append(slot_time.strftime("%H:%M"))
-
+        while current + timedelta(minutes=15) <= end:
+            result[weekday]["slots"].append(current.time())
             current += timedelta(minutes=15)
 
     return result

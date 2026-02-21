@@ -34,12 +34,24 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ["id", "username", "first_name", "last_name", "email", "role"]
 
 class StudentSerializer(serializers.ModelSerializer):
+    next_booking = serializers.SerializerMethodField()
+
     class Meta:
         model = StudentProfile
-        fields = ["id", "user", "year_level", "area_of_study"]
+        fields = ["id", "user", "year_level", "area_of_study", "next_booking",]
         read_only_fields = ["id", "user"]
-
         depth = 1
+
+    def get_next_booking(self, obj):
+        booking = obj.next_booking()
+        if not booking:
+            return None
+
+        return {
+            "start": booking.start_datetime.isoformat(),
+            "end": booking.end_datetime.isoformat(),
+        }
+
 
 class TutorSerializer(serializers.ModelSerializer):
     class Meta:

@@ -1,0 +1,138 @@
+class QuestionViewSet(viewsets.ViewSet):
+    @action(detail=False, methods=["post"])
+    def record(self, request):
+        student_id = request.data.get("student_id")
+        template_id = request.data.get("template_id")
+
+        if not student_id:
+            return Response({"error": "student_id is required"}, 400)
+
+        if not template_id:
+            return generate_first_question(request)
+
+        # Validate student
+        try:
+            student = User.objects.get(id=student_id)
+        except User.DoesNotExist:
+            return Response({"error": "Student not found"}, status=404)
+        print("Found student")
+
+        # Validate template
+        try:
+            template = Template.objects.get(id=template_id)
+        except Template.DoesNotExist:
+            return Response({"error": "Template not found"}, status=404)
+        print("Found template")
+
+        # Create the Question record
+        q = Question.objects.create(
+            template=template,
+            student=student,
+            params=request.data.get("params", {}),
+            question_text=request.data.get("question_text", ""),
+            correct_answer=request.data.get("correct_answer", ""),
+            help_requested=request.data.get("help_requested", False),
+            selected_answer=request.data.get("selected_answer"),
+            correct=request.data.get("correct", False),
+            time_taken_ms=request.data.get("time_taken_ms"),
+        )
+
+        # ---------------------------------------------------------
+        # UPDATE STUDENT SKILL MASTERY
+        # ---------------------------------------------------------
+        skill = template.skill  # Template already has a skill FK
+
+        matrix, _ = StudentSkillMatrix.objects.get_or_create(
+            student=student,
+            skill=skill,
+            defaults={"mastery": 0.0}
+        )
+        # print("Mastery (pre):", matrix.mastery)
+
+        # Update mastery
+        if q.correct:
+            matrix.mastery += 1
+        else:
+            matrix.mastery -= 5
+
+        # Clamp mastery between 0 and 15
+        matrix.mastery = max(0, min(15, matrix.mastery))
+        matrix.save()
+        # print("Mastery (post):", matrix.mastery)
+
+        # ---------------------------------------------------------
+        # DETERMINE NEXT DIFFICULTY
+        # ---------------------------------------------------------
+        if matrix.mastery <= 4:
+            next_difficulty = "easy"
+        elif matrix.mastery <= 9:
+            next_difficulty = "medium"
+        else:
+            next_difficulty = "hard"
+
+        # ---------------------------------------------------------
+        # FETCH NEXT QUESTION DIRECTLY
+        # ---------------------------------------------------------
+        print(f"Looking for templates with:")
+        print(f"  skill: {template.skill}")
+        print(f"  grade: {template.grade}")
+        print(f"  difficulty: {next_difficulty}")
+        next_template = (
+            Template.objects.filter(
+                skill=template.skill,
+                grade=template.grade,
+                difficulty__iexact=next_difficulty
+            )
+            .order_by("?")
+            .first()
+        )
+        print(f"Found next_template for specific difficulty: {next_template}")
+        if next_template:
+            preview = generate_values_and_question(next_template.id)
+            if preview["ok"]:
+                next_question = preview["preview"]
+                next_question["template_id"] = next_template.id  # <-- FIX
+                # print("Next question", next_question)
+            else:
+                next_question = None
+        else:
+            next_question = None
+
+        if not next_template:
+            print("No template found for specific difficulty, looking for any template...")
+            next_template = Template.objects.filter(skill=template.skill, grade=template.grade).first()
+            print(f"Fallback template: {next_template}")
+
+        # Generate question from the template (either specific difficulty or fallback)
+        next_question = None
+        next_template_id = None
+        if next_template:
+            next_template_id = next_template.id
+            print(f"Generating question for template: {next_template_id}")
+
+            preview = generate_values_and_question(next_template.id)
+            if preview["ok"]:
+                next_question = preview["preview"]
+                next_question["template_id"] = next_template.id
+                print(f"Successfully generated question with template_id: {next_template.id}")
+            else:
+                print("Failed to generate question from template")
+                next_question = None
+                next_template_id = None
+        else:
+            print("No template found at all - this shouldn't happen in a normal system")
+
+        # ---------------------------------------------------------
+        # RETURN RESPONSE INCLUDING NEXT DIFFICULTY
+        # ---------------------------------------------------------
+        response_data = {
+            "ok": True,
+            "question_id": q.id,
+            "mastery": matrix.mastery,
+            "competence_label": mastery_label(matrix.mastery),
+            "next_difficulty": next_difficulty,
+            "next_question": next_question,
+            "template_id": next_template.id if next_template else None,
+        }
+        print("Returning response:", response_data)  # Add this
+        return Response(response_data, status=201)

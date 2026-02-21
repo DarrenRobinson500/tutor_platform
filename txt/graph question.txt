@@ -1,0 +1,71 @@
+title:
+    Analyzing Graphs
+
+years:
+    3
+
+difficulty:
+    medium
+
+introduction:
+    Analyze data presented in various types of graphs.
+
+worked_example:
+    {
+  "example_number": 5,
+  "steps": [
+    "Examine a pie chart showing favorite foods.",
+    "Identify which food is the most liked."
+  ]
+}
+
+parameters:
+    {
+  "a": {
+    "type": "int",
+    "min": 1,
+    "max": 20
+  },
+  "b": {
+    "type": "int",
+    "min": 1,
+    "max": 20
+  }
+}
+
+question:
+    {
+  "text": "Based on this graph: which food is more popular: Pizza or Pasta?"
+}
+
+answers:
+  - logic: "a > b"
+    text: "Pizza"
+    correct: true
+  - logic: "b > a"
+    text: "Pasta"
+    correct: true
+
+
+solution:
+    {
+  "text": "You can see that more students prefer pizza since {{ a }} is greater  than {{ b }}."
+}
+
+diagram: |
+  GraphPie(points: [("Pizza", {{ a }}), ("Pasta", {{ b }})], pos: (0,0))
+
+validation:
+    {
+  "required_fields": [
+    "question.text",
+    "answers",
+    "solution.text"
+  ],
+  "rules": [
+    {
+      "check": "a != 0",
+      "message": "Coefficient 'a' must not be zero."
+    }
+  ]
+}

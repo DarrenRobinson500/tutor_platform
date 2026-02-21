@@ -1,0 +1,30 @@
+    @action(detail=True, methods=["get"])
+    def home(self, request, pk=None):
+        student_profile = self.get_object()
+        user = student_profile.user
+
+        tutor_user = user.get_tutor()
+        tutor_name = tutor_user.get_full_name() or tutor_user.username if tutor_user else None
+        tutor_id = tutor_user.id if tutor_user else None
+
+        # Next booking
+        next_booking = (Appointment.objects.filter(student=user, start_datetime__gte=timezone.now()).order_by("start_datetime").first())
+
+        next_booking_data = None
+        if next_booking:
+            next_booking_data = {
+                "id": next_booking.id,
+                "start": next_booking.start_datetime,
+                "end": next_booking.end_datetime,
+            }
+
+        data = {
+            "id": user.id,
+            "name": user.get_full_name() or user.username,
+            "email": user.email,
+            "tutor_id": tutor_id,
+            "tutor_name": tutor_name,
+            "year_level": student_profile.year_level,
+            "area_of_study": student_profile.area_of_study,
+            "next_booking": next_booking_data,
+        }

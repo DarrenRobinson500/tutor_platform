@@ -6,9 +6,11 @@ from rest_framework.response import Response
 
 def generate_preview_from_content(content: str):
     # 1. Parse YAML
+    print("Generate preview from content - 1")
     try:
         parsed = yaml.safe_load(content)
     except Exception as e:
+        print("Generate preview from content - 1 (failed)")
         return {
             "ok": False,
             "preview": {
@@ -25,6 +27,7 @@ def generate_preview_from_content(content: str):
         }
 
     # 2. Validate
+    print("Generate preview from content - 2")
     errors = validate_template(parsed)
     if errors:
         return {
@@ -34,6 +37,7 @@ def generate_preview_from_content(content: str):
         }
 
     # 3. Render preview
+    print("Generate preview from content - 3")
     try:
         preview = render_template_preview(parsed)
         if "substituted_yaml" not in preview:

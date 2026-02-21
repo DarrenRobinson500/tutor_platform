@@ -18,8 +18,6 @@ def get_cached_students_for_tutor(tutor):
         for link in links:
             student_user = link.student
             profile = student_user.get_student_profile()
-            next_ad_hoc = student_user.next_ad_hoc_booking()
-            next_weekly = student_user.next_weekly_booking()
 
             data.append({
                 "user_id": student_user.id,
@@ -29,8 +27,6 @@ def get_cached_students_for_tutor(tutor):
                 "email": student_user.email,
                 "year_level": profile.year_level,
                 "area_of_study": profile.area_of_study,
-                "next_ad_hoc_booking": next_ad_hoc,
-                "next_weekly_booking": next_weekly,
             })
 
         STUDENTS_CACHE[tutor_id] = data
@@ -45,6 +41,7 @@ def invalidate_students_cache_for_tutor(tutor_id):
 # ------------WEEKLY SLOTS -------------
 
 WEEKLY_SLOTS_CACHE = {}
+
 
 def get_cached_weekly_slots(tutor, week_start, student):
     key = (tutor.id, week_start, student.id if student else None)
@@ -63,111 +60,6 @@ def invalidate_weekly_slots_cache_for_tutor(tutor_id):
         if key[0] != tutor_id
     }
 
-
-# ------------ WEEKLY BOOKING AVAILABILITY -------------
-
-WEEKLY_AVAILABILITY_CACHE = {}
-
-def build_weekly_availability(tutor):
-    """
-    Builds the full weekly availability structure for a tutor:
-      - 15-minute availability slots
-      - weekly bookings (with student names)
-      - booked slots removed for the full duration
-      - buffer time before and after bookings removed
-      - only start times where a full session fits and does not overlap
-        any blocked time are included
-    """
-
-    availability = TutorAvailability.objects.filter(tutor=tutor)
-    bookings = WeeklyBooking.objects.filter(tutor=tutor).select_related("student")
-    print("Build weekly availability:\n", bookings)
-
-    session_minutes = tutor.default_session_minutes
-    session_delta = timedelta(minutes=session_minutes)
-
-    buffer_minutes = tutor.buffer_minutes
-    buffer_delta = timedelta(minutes=buffer_minutes)
-
-    booking_map = defaultdict(list)
-    booked_times = defaultdict(set)   # ALL 15-min increments inside booking+buffer
-
-    for b in bookings:
-        booking_map[b.weekday].append({
-            "start_time": b.start_time.strftime("%H:%M"),
-            "end_time": b.end_time.strftime("%H:%M"),
-            "student_id": b.student.id,
-            "student_name": b.student.first_name,
-        })
-
-        # Booking duration + buffer before + buffer after
-        start_dt = datetime.combine(datetime.today(), b.start_time) - buffer_delta
-        end_dt = datetime.combine(datetime.today(), b.end_time) + buffer_delta
-
-        current = start_dt
-        while current < end_dt:
-            booked_times[b.weekday].add(current.time())
-            current += timedelta(minutes=15)
-
-    result = {i: {"slots": [], "bookings": booking_map[i]} for i in range(7)}
-
-    for av in availability:
-        weekday = av.weekday
-
-        start = datetime.combine(datetime.today(), av.start_time)
-        end = datetime.combine(datetime.today(), av.end_time)
-
-        current = start
-        # Only consider starts where the full session fits inside availability
-        while current + session_delta <= end:
-            slot_time = current.time()
-
-            # Check if ANY 15-min chunk of this session overlaps blocked times
-            conflict = False
-            check = current
-            session_end = current + session_delta
-            while check < session_end:
-                if check.time() in booked_times[weekday]:
-                    conflict = True
-                    break
-                check += timedelta(minutes=15)
-
-            if not conflict:
-                result[weekday]["slots"].append(slot_time.strftime("%H:%M"))
-
-            current += timedelta(minutes=15)
-
-    return result
-
-def get_cached_weekly_availability(tutor):
-    tutor_id = tutor.id
-
-    if tutor_id not in WEEKLY_AVAILABILITY_CACHE:
-        WEEKLY_AVAILABILITY_CACHE[tutor_id] = build_weekly_availability(tutor)
-
-    return WEEKLY_AVAILABILITY_CACHE[tutor_id]
-
-
-def invalidate_weekly_availability_cache_for_tutor(tutor_id):
-    if tutor_id in WEEKLY_AVAILABILITY_CACHE:
-        del WEEKLY_AVAILABILITY_CACHE[tutor_id]
-
-def mask_weekly_availability_for_student(availability, student_id):
-    import copy
-    safe = copy.deepcopy(availability)
-
-    for weekday, info in safe.items():
-        for b in info["bookings"]:
-            if b["student_id"] == student_id:
-                b["status"] = "booked_self"
-            else:
-                b["status"] = "booked_other"
-
-            # Remove identifying info
-            b.pop("student_name", None)
-            b.pop("student_id", None)
-
-    return safe
 
 # ----------SKILLS ---------------
 
