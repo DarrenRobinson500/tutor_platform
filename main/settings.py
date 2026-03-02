@@ -164,7 +164,10 @@ else:
     CORS_ALLOWED_ORIGINS = [
         "https://greenlearning.vercel.app",
     ]
-
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 
@@ -236,10 +239,15 @@ USE_TZ = True
 # ---------------------------------------------------------
 # Static files (WhiteNoise)
 # ---------------------------------------------------------
+
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+if not DEBUG:
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+STATICFILES_DIRS = []  # Don't add any extra dirs that don't exist
+WHITENOISE_AUTOREFRESH = True  # Only for debugging, remove later
+WHITENOISE_USE_FINDERS = True  # Only for debugging, remove later
 
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # ---------------------------------------------------------
 # Security (production)
@@ -254,6 +262,7 @@ if not DEBUG:
     SECURE_HSTS_PRELOAD = True
     CSRF_COOKIE_SAMESITE = "None"
     SESSION_COOKIE_SAMESITE = "None"
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 # ---------------------------------------------------------
 # Security (local)
 # ---------------------------------------------------------
