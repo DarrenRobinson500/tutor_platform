@@ -13,7 +13,7 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=24),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
@@ -156,49 +156,51 @@ REST_FRAMEWORK = {
 # ---------------------------------------------------------
 # CORS + CSRF (dynamic for dev + Railway + custom domain)
 # ---------------------------------------------------------
-CORS_ALLOW_CREDENTIALS = True
+# CORS_ALLOW_CREDENTIALS = True
 
 FRONTEND_URL = os.getenv("FRONTEND_URL")          # e.g. https://myfrontend.railway.app
 CUSTOM_FRONTEND = os.getenv("CUSTOM_FRONTEND")    # e.g. https://app.yourtutorbrand.com
 
-CORS_ALLOWED_ORIGINS = [
-    FRONTEND_URL,
-    "http://localhost:3000",
-    "https://tutor-frontend-peach.vercel.app",
-    "https://greenlearning.vercel.app",
-]
-CSRF_TRUSTED_ORIGINS = [
-    "https://web-production-f1310.up.railway.app",
-    "https://*.railway.app",
-    "https://tutor-frontend-peach.vercel.app",
-    "https://greenlearning.vercel.app",
-    FRONTEND_URL,
-]
+CORS_ALLOW_ALL_ORIGINS = True
+
+# CORS_ALLOWED_ORIGINS = [
+#     FRONTEND_URL,
+#     "http://localhost:3000",
+#     "https://tutor-frontend-peach.vercel.app",
+#     "https://greenlearning.vercel.app",
+# ]
+# CSRF_TRUSTED_ORIGINS = [
+#     "https://web-production-f1310.up.railway.app",
+#     "https://*.railway.app",
+#     "https://tutor-frontend-peach.vercel.app",
+#     "https://greenlearning.vercel.app",
+#     FRONTEND_URL,
+# ]
 
 
 # Local dev defaults
-CORS_ALLOWED_ORIGINS.extend([
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    os.getenv("FRONTEND_URL"),
-])
+# CORS_ALLOWED_ORIGINS.extend([
+#     "http://localhost:3000",
+#     "http://127.0.0.1:3000",
+#     os.getenv("FRONTEND_URL"),
+# ])
 
-CSRF_TRUSTED_ORIGINS.extend([
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    os.getenv("FRONTEND_URL"),
-])
+# CSRF_TRUSTED_ORIGINS.extend([
+#     "http://localhost:3000",
+#     "http://127.0.0.1:3000",
+#     "http://localhost:8000",
+#     "http://127.0.0.1:8000",
+#     os.getenv("FRONTEND_URL"),
+# ])
 
 # Production domains
-if FRONTEND_URL:
-    CORS_ALLOWED_ORIGINS.append(FRONTEND_URL)
-    CSRF_TRUSTED_ORIGINS.append(FRONTEND_URL)
-
-if CUSTOM_FRONTEND:
-    CORS_ALLOWED_ORIGINS.append(CUSTOM_FRONTEND)
-    CSRF_TRUSTED_ORIGINS.append(CUSTOM_FRONTEND)
+# if FRONTEND_URL:
+#     CORS_ALLOWED_ORIGINS.append(FRONTEND_URL)
+#     CSRF_TRUSTED_ORIGINS.append(FRONTEND_URL)
+#
+# if CUSTOM_FRONTEND:
+#     CORS_ALLOWED_ORIGINS.append(CUSTOM_FRONTEND)
+#     CSRF_TRUSTED_ORIGINS.append(CUSTOM_FRONTEND)
 
 # ---------------------------------------------------------
 # Password validation
@@ -231,7 +233,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # ---------------------------------------------------------
-# Security (production only)
+# Security (production)
 # ---------------------------------------------------------
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
@@ -241,9 +243,22 @@ if not DEBUG:
     SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
+    CSRF_COOKIE_SAMESITE = "None"
+    SESSION_COOKIE_SAMESITE = "None"
+# ---------------------------------------------------------
+# Security (local)
+# ---------------------------------------------------------
 
-CSRF_COOKIE_SAMESITE = "None"
-SESSION_COOKIE_SAMESITE = "None"
+else:
+    # SESSION_COOKIE_SECURE = True
+    # CSRF_COOKIE_SECURE = True
+    # SESSION_COOKIE_SAMESITE = "None"
+    # CSRF_COOKIE_SAMESITE = "None"
+    USE_X_FORWARDED_HOST = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'http')
+
+    # print("Local security in place")
+
 
 
 # ---------------------------------------------------------

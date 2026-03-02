@@ -1,0 +1,197 @@
+import React, { useState } from "react";
+
+interface Booking {
+  id?: number;
+  start_time: string;
+  end_time?: string;
+  student_name?: string;
+  booking_type: "weekly" | "adhoc" | "weekly_paused";
+  confirmed?: boolean;
+  duration_minutes?: number;
+  student_id?: number;
+}
+
+interface DayData {
+  day_status: "past" | "today" | "future";
+  bookings: Booking[];
+}
+
+interface ExistingBookingsWeekProps {
+  week: Record<string, DayData>;
+  onEdit: (date: string, booking: Booking, index: number) => void;
+  handleBookingAction: (bookingId: number, bookingType: string, action: "confirm" | "delete" | "skip" | "remove_skip") => void;
+}
+
+export function ExistingBookingsWeek({
+  week,
+  onEdit,
+  handleBookingAction,
+}: ExistingBookingsWeekProps) {
+  const [expanded, setExpanded] = useState<{ date: string; index: number } | null>(null);
+
+  const dates = Object.keys(week).sort();
+
+  const formatTime = (t: string) => {
+    if (!t) return "";
+    const [h, m] = t.split(":").map(Number);
+    const d = new Date();
+    d.setHours(h, m);
+    return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  };
+
+  const dayBackground = (status: string) => {
+    if (status === "past") return "#EEE";
+    if (status === "today") return "#FFF9C4";
+    return "#FFF";
+  };
+
+  const bookingBackground = (type: string) => {
+    if (type === "weekly_paused") return "#E0E0E0"; // light grey
+    if (type === "weekly") return "#CFF4FC";        // blue
+    if (type === "adhoc") return "#FFF3CD";         // yellow
+    return "#FFF";                                  // fallback
+  };
+
+
+  return (
+    <div
+      className="weekly-booking-grid mb-4"
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(7, 1fr)",
+        gap: "0px",
+      }}
+    >
+      {dates.map((dateStr) => {
+        const day = week[dateStr];
+        const dayObj = new Date(dateStr);
+        const formatted = dayObj.toLocaleDateString([], {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+        });
+
+
+        return (
+          <div
+            key={dateStr}
+            className="day-column"
+            style={{
+              border: "1px solid #ccc",
+              padding: "10px",
+              borderRadius: "6px",
+              minHeight: "120px",
+              background: dayBackground(day.day_status),
+            }}
+          >
+            <h5 style={{ textAlign: "center" }}>
+              {formatted}
+            </h5>
+
+            {day.bookings.map((b, idx) => {
+              const isOpen =
+                expanded &&
+                expanded.date === dateStr &&
+                expanded.index === idx;
+
+              return (
+                <div key={idx}>
+                  {/* Compact card */}
+                  <button
+                    className="card w-100 text-start"
+                    style={{
+                      padding: "6px 8px",
+                      marginTop: "6px",
+                      borderRadius: "6px",
+                      border: "1px solid #ddd",
+                      background: bookingBackground(b.booking_type),
+                      fontSize: "0.8rem",
+                    }}
+                    onClick={() =>
+                      setExpanded(isOpen ? null : { date: dateStr, index: idx })
+                    }
+                  >
+                    <div>
+                      <strong>{formatTime(b.start_time)}</strong>{" "}
+                      <b>{b.student_name}</b>{" "}
+                      {!b.confirmed && (
+                        <span style={{ color: "#b00", fontWeight: 600 }}>
+                          (unconfirmed)
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Status line */}
+                    <div style={{ fontSize: "0.7rem", color: "#555", marginTop: "2px" }}>
+                      {b.booking_type === "weekly" && "Weekly"}
+                      {b.booking_type === "weekly_paused" && "Weekly (paused)"}
+                      {b.booking_type === "adhoc" && "One-off"}
+
+                      {" | "}
+                      {b.confirmed ? "Confirmed" : "Not confirmed"}
+
+                    </div>
+                  </button>
+
+                  {/* Expanded editor */}
+                  {isOpen && (
+                    <div
+                      className="border rounded p-2 mt-2"
+                      style={{ background: "#fff" }}
+                    >
+                      <div className="d-flex gap-2 mt-2">
+
+                          {b.booking_type === "weekly_paused" ? (
+                            <button
+                              className="btn btn-warning btn-sm"
+                              onClick={() =>
+                                handleBookingAction(b.id!, b.booking_type, "remove_skip")
+                              }
+                            >
+                              Remove Skip
+                            </button>
+                          ) : (
+                            <button
+                              className="btn btn-warning btn-sm"
+                              onClick={() =>
+                                handleBookingAction(b.id!, b.booking_type, "skip")
+                              }
+                            >
+                              Skip
+                            </button>
+                          )}
+
+
+
+                        <button
+                          className="btn btn-success btn-sm"
+                          onClick={() => onEdit(dateStr, b, idx)}
+                        >
+                          Edit
+                        </button>
+
+                        <button
+                          className="btn btn-danger btn-sm ms-auto"
+                            onClick={() => handleBookingAction(b.id!, b.booking_type, "delete")}
+                        >
+                          Delete
+                        </button>
+
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => handleBookingAction(b.id!, b.booking_type, "confirm")}
+                        >
+                          Confirm
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}

@@ -65,3 +65,13 @@ class NoteSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ["id", "author", "created_at"]
 
+class BookingWeeklySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BookingWeekly
+        fields = "__all__"
+
+class BookingAdhocSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BookingAdhoc
+        fields = ["id", "student", "tutor", "start_datetime", "end_datetime", "confirmed"]
+        read_only_fields = ["id", "tutor", "end", "confirmed"]

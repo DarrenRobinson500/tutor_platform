@@ -51,7 +51,7 @@ def get_cached_weekly_slots(tutor, week_start, student):
 
     return WEEKLY_SLOTS_CACHE[key]
 
-def invalidate_weekly_slots_cache_for_tutor(tutor_id):
+def invalidate_availability_adhoc(tutor_id):
     print("Invalidating Weekly slots cash (tutor id)", tutor_id)
     global WEEKLY_SLOTS_CACHE
     WEEKLY_SLOTS_CACHE = {

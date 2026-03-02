@@ -1,7 +1,7 @@
 from datetime import datetime, date, time, timedelta
 from django.utils.timezone import make_aware
 
-from .models import TutorProfile, TutorAvailability, TutorBlockedDay, Appointment
+from .models import TutorProfile, TutorAvailability, TutorBlockedDay, BookingAdhoc
 
 
 # ---------------------------------------------------------
@@ -63,7 +63,7 @@ def generate_weekly_slots(tutor_profile, week_start):
     # Load bookings for the week
     # ---------------------------------------------------------
     week_end = week_start + timedelta(days=7)
-    bookings = Appointment.objects.filter(
+    bookings = BookingAdhoc.objects.filter(
         tutor=tutor_profile,
         start_datetime__date__gte=week_start,
         start_datetime__date__lt=week_end

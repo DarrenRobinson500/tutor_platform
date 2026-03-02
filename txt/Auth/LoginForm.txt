@@ -1,0 +1,56 @@
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+export default function LoginForm() {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+
+    const res = await fetch("/api/auth/login/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setError(data.error || "Login failed");
+      return;
+    }
+
+    // Redirect based on role
+    if (data.role === "tutor") navigate("/tutor/home");
+    if (data.role === "parent") navigate("/parent/home");
+    if (data.role === "student") navigate("/student/home");
+  }
+
+  return (
+    <form onSubmit={handleLogin} className="auth-form">
+      <input
+        type="text"
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+      />
+
+      <input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        required
+      />
+
+      {error && <div className="auth-error">{error}</div>}
+
+      <button type="submit">Login</button>
+    </form>
+  );
+}

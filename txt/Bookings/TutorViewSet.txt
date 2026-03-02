@@ -1,0 +1,37 @@
+    @action(detail=True, methods=["POST"])
+    def confirm_booking(self, request, pk=None):
+        tutor = self.get_object()
+        booking_id = request.data.get("id")
+        booking_type = request.data.get("type")
+
+        if not booking_id or not booking_type:
+            return Response({"ok": False, "error": "Missing id or type."})
+
+        booking_model = BookingWeekly
+        if booking_type == "adhoc": booking_model = BookingAdhoc
+        try:
+            b = booking_model.objects.get(id=booking_id, tutor=tutor)
+            b.confirmed = not b.confirmed
+            b.save()
+            update_booking_confirmed_in_cache(tutor.id, booking_id, booking_type, b.confirmed)
+            return Response({"ok": True, "confirmed": b.confirmed})
+        except booking_model.DoesNotExist:
+            return Response({"ok": False, "error": "Booking not found."})
+
+    @action(detail=True, methods=["post"], url_path="delete_booking")
+    def delete_booking(self, request, pk=None):
+        user = self.get_object()  # the tutor in tutor_view OR the tutor of the student
+
+        booking_id = request.data.get("booking_id")
+        print("Delete Booking (booking_id):", booking_id)
+        if not booking_id:
+            return Response({"error": "booking_id is required"}, status=400)
+        try:
+            appt = BookingAdhoc.objects.get(id=booking_id)
+        except BookingAdhoc.DoesNotExist:
+            return Response({"error": "Appointment not found"}, status=404)
+
+        invalidate_availability_adhoc(appt.tutor.id)
+
+        appt.delete()
+        return Response({"status": "ok", "message": "Booking deleted"})

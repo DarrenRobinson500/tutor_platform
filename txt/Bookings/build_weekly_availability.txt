@@ -1,0 +1,64 @@
+
+def build_weekly_availability(tutor):
+    availability = TutorAvailability.objects.filter(tutor=tutor)
+    bookings = BookingWeekly.objects.filter(tutor=tutor).select_related("student")
+    # print("Build weekly availability:\n", bookings)
+
+    session_minutes = tutor.default_session_minutes
+    session_delta = timedelta(minutes=session_minutes)
+
+    buffer_minutes = tutor.buffer_minutes
+    buffer_delta = timedelta(minutes=buffer_minutes)
+
+    booking_map = defaultdict(list)
+    booked_times = defaultdict(set)   # ALL 15-min increments inside booking+buffer
+
+    for b in bookings:
+        booking_map[b.weekday].append({
+            "id": b.id,
+            "start_time": b.start_time.strftime("%H:%M"),
+            "end_time": b.end_time.strftime("%H:%M"),
+            "start_date": b.start_date,
+            "student_id": b.student.id,
+            "student_name": b.student.first_name,
+            "confirmed": b.confirmed,
+        })
+
+        # Booking duration + buffer before + buffer after
+        start_dt = datetime.combine(datetime.today(), b.start_time) - buffer_delta
+        end_dt = datetime.combine(datetime.today(), b.end_time) + buffer_delta
+
+        current = start_dt
+        while current < end_dt:
+            booked_times[b.weekday].add(current.time())
+            current += timedelta(minutes=15)
+
+    result = {i: {"slots": [], "bookings": booking_map[i]} for i in range(7)}
+
+    for av in availability:
+        weekday = av.weekday
+
+        start = datetime.combine(datetime.today(), av.start_time)
+        end = datetime.combine(datetime.today(), av.end_time)
+
+        current = start
+        # Only consider starts where the full session fits inside availability
+        while current + session_delta <= end:
+            slot_time = current.time()
+
+            # Check if ANY 15-min chunk of this session overlaps blocked times
+            conflict = False
+            check = current
+            session_end = current + session_delta
+            while check < session_end:
+                if check.time() in booked_times[weekday]:
+                    conflict = True
+                    break
+                check += timedelta(minutes=15)
+
+            if not conflict:
+                result[weekday]["slots"].append(slot_time.strftime("%H:%M"))
+
+            current += timedelta(minutes=15)
+
+    return result

@@ -1,0 +1,26 @@
+    def booking_create_adhoc(self, start_dt: datetime):
+        if self.role != "student": raise ValueError("Only students can create ad-hoc bookings.")
+
+        tutor = self.get_tutor()
+        if not tutor: raise ValueError("Student does not have an assigned tutor.")
+        print("Booking create adhoc",tutor)
+
+        session_minutes = tutor.default_session_minutes
+        end_dt = start_dt + timedelta(minutes=session_minutes)
+
+        week_start = start_dt.date() - timedelta(days=start_dt.weekday())  # Monday start
+        weekly_slots = tutor.booking_slots_weekly()
+        print("Booking create adhoc (weekly slots)", weekly_slots)
+        adhoc_slots = tutor.booking_slots_adhoc(weekly_slots, week_start)
+        print("Booking create adhoc (adhoc slots)", adhoc_slots)
+        weekday = start_dt.weekday()
+        print("Booking create adhoc (weekday)", start_dt, weekday)
+        slot_str = start_dt.strftime("%H:%M")
+        print("Booking create adhoc", slot_str, adhoc_slots.get(weekday, []))
+        if slot_str not in adhoc_slots.get(weekday, []):
+            print("Booking create adhoc", slot_str, adhoc_slots.get(weekday, []))
+            raise ValueError("This ad-hoc booking time is not available.")
+
+        booking = BookingAdhoc.objects.create(student=self, tutor=tutor, start=start_dt, end=end_dt)
+
+        return booking

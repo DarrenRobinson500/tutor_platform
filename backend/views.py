@@ -23,14 +23,21 @@ import time
 from .template_utilities import *
 from django.contrib.auth import get_user_model
 User = get_user_model()
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from rest_framework_simplejwt.tokens import RefreshToken
+from .pre_view import *
 
+
+@method_decorator(csrf_exempt, name='dispatch')
 class AuthViewSet(viewsets.ViewSet):
     permission_classes = [AllowAny]
 
     @action(detail=False, methods=["get"])
     def me(self, request):
         user = request.user
-
+        if not user or not user.is_authenticated:
+            return Response({"error": "Not authenticated"}, status=401)
         return Response({
             "id": user.id,
             "username": user.username,
@@ -44,7 +51,7 @@ class AuthViewSet(viewsets.ViewSet):
 
         dev_users = {
             "admin": "admin",
-            "alex": "superalexrobinson@gmail.com",
+            "alex": "Alex",
             "blair": "Blair",
         }
 
@@ -66,6 +73,66 @@ class AuthViewSet(viewsets.ViewSet):
             "first_name": user.first_name,
             "role": user.role,
         })
+
+    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    def register(self, request):
+        email = request.data.get("email")
+        password = request.data.get("password")
+        role = request.data.get("role")
+
+        if not email or not password or not role:
+            return Response({"error": "Missing fields"}, status=400)
+
+        if role not in ["tutor", "parent", "student"]:
+            return Response({"error": "Invalid role"}, status=400)
+
+        if User.objects.filter(username=email).exists():
+            return Response({"error": "Email already registered"}, status=400)
+
+        user = User.objects.create(
+            username=email,
+            email=email,
+            password=make_password(password),
+            role=role,
+        )
+
+        if user.role == "tutor":
+            profile = TutorProfile.create()
+
+        login(request, user)
+
+        return Response({
+            "id": user.id,
+            "username": user.username,
+            "role": user.role,
+            "first_name": user.first_name,
+        })
+
+    @method_decorator(csrf_exempt, name='login')
+    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    def login(self, request):
+        email = request.data.get("email")
+        password = request.data.get("password")
+
+        user = authenticate(request, username=email, password=password)
+
+        if user is None:
+            print("Login: invalid credentials")
+            return Response({"error": "Invalid credentials"}, status=400)
+
+        # Generate JWT tokens
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "role": user.role,
+                "first_name": user.first_name,
+            }
+        })
+
 
 
 class QuestionViewSet(viewsets.ViewSet):
@@ -542,7 +609,7 @@ class TutorViewSet(viewsets.ModelViewSet):
 
     queryset = User.objects.filter(role="tutor").order_by("username")
     serializer_class = UserSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     @action(detail=True, methods=["get"])
     def home(self, request, pk=None):
@@ -554,18 +621,39 @@ class TutorViewSet(viewsets.ModelViewSet):
         })
 
     @action(detail=True, methods=["get"])
-    def booking(self, request, pk=None):
+    def students(self, request, pk=None):
+        # print("Getting students:", now)
         tutor_user = self.get_object()
-        tutor = tutor_user.get_tutor_profile()
+        data = get_cached_students_for_tutor(tutor_user)
+        # print("Received students:", now)
+        # print(data)
+        return Response(data)
 
-        students = get_cached_students_for_tutor(tutor_user)
-        weekly_availability = get_cached_weekly_availability(tutor_user)
-        print("Weekly Availability", weekly_availability[3])
+    @action(detail=True, methods=["get"], url_path="booking")
+    def booking(self, request, pk=None):
+
+        tutor = self.get_object()
+        students = get_cached_students_for_tutor(tutor)
+
+        today = date.today()
+        weekday = today.weekday()
+        last_monday = today - timedelta(days=weekday)
+        next_monday = last_monday + timedelta(days=7)
+        last_monday = last_monday.isoformat()
+        next_monday = next_monday.isoformat()
+
+        # Build two weeks using cached data
+        week1 = get_combined_calendar(tutor, last_monday)
+        week2 = get_combined_calendar(tutor, next_monday)
+        # print("Week 2:", week2)
 
         return Response({
             "students": students,
-            "weekly_availability": weekly_availability,
+            "week1": week1,
+            "week2": week2,
         })
+
+
 
     @action(detail=True, methods=["get"])
     def templates(self, request, pk=None):
@@ -573,12 +661,6 @@ class TutorViewSet(viewsets.ModelViewSet):
         templates = Template.objects.filter(created_by=tutor)
         serializer = TemplateSerializer(templates, many=True)
         return Response(serializer.data)
-
-    @action(detail=True, methods=["get"])
-    def students(self, request, pk=None):
-        tutor = self.get_object()
-        data = get_cached_students_for_tutor(tutor)
-        return Response(data)
 
     @action(detail=False, methods=["post"])
     def create_tutor(self, request):
@@ -606,11 +688,11 @@ class TutorViewSet(viewsets.ModelViewSet):
             "password": password
         })
 
-    @action(detail=True, methods=["get"])
-    def weekly_availability(self, request, pk=None):
-        tutor = self.get_object()
-        data = get_cached_weekly_availability(tutor)
-        return Response(data)
+    # @action(detail=True, methods=["get"])
+    # def weekly_availability(self, request, pk=None):
+    #     tutor = self.get_object()
+    #     data = get_availability_weekly(tutor)
+    #     return Response(data)
 
     @action(detail=True, methods=["POST"])
     def edit_weekly_booking(self, request, pk=None):
@@ -638,12 +720,12 @@ class TutorViewSet(viewsets.ModelViewSet):
 
         # Find the existing booking
         try:
-            booking = WeeklyBooking.objects.get(
+            booking = BookingWeekly.objects.get(
                 tutor=tutor,
                 weekday=weekday,
                 start_time=old_start,
             )
-        except WeeklyBooking.DoesNotExist:
+        except BookingWeekly.DoesNotExist:
             print("Edit - Couldn't find weekly booking")
             return Response({"ok": False, "error": "Booking not found."})
 
@@ -654,35 +736,9 @@ class TutorViewSet(viewsets.ModelViewSet):
 
         booking.save()
         print("Booking edits were saved")
-        invalidate_weekly_slots_cache_for_tutor(tutor.id)
+        invalidate_availability_adhoc(tutor.id)
 
         return Response({"ok": True})
-
-    @action(detail=True, methods=["get"])
-    def availability(self, request, pk=None):
-        tutor = self.get_object()
-
-        availability = TutorAvailability.objects.filter(tutor=tutor)
-        blocked = TutorBlockedDay.objects.filter(tutor=tutor)
-
-        return Response({
-            "availability": [
-                {
-                    "id": a.id,
-                    "weekday": a.weekday,
-                    "start_time": a.start_time,
-                    "end_time": a.end_time,
-                }
-                for a in availability
-            ],
-            "blocked_days": [
-                {
-                    "id": b.id,
-                    "date": b.date,
-                }
-                for b in blocked
-            ]
-        })
 
     @action(detail=True, methods=["post"])
     def add_availability(self, request, pk=None):
@@ -698,14 +754,16 @@ class TutorViewSet(viewsets.ModelViewSet):
             start_time=start,
             end_time=end,
         )
-        invalidate_weekly_slots_cache_for_tutor(tutor.id)
+        invalidate_availability_adhoc(tutor.id)
+        Invalidate_availability_weekly(tutor.id)
 
         return Response({"id": a.id})
 
     @action(detail=True, methods=["post"])
     def remove_availability(self, request, pk=None):
+
         TutorAvailability.objects.filter(id=request.data.get("id")).delete()
-        invalidate_weekly_slots_cache_for_tutor(tutor.id)
+        invalidate_availability_adhoc(request.data.get("id"))
 
         return Response({"status": "ok"})
 
@@ -714,7 +772,7 @@ class TutorViewSet(viewsets.ModelViewSet):
         tutor = self.get_object()
         date = request.data.get("date")
         b = TutorBlockedDay.objects.create(tutor=tutor, date=date)
-        invalidate_weekly_slots_cache_for_tutor(tutor.id)
+        invalidate_availability_adhoc(tutor.id)
 
         return Response({"id": b.id})
 
@@ -722,39 +780,9 @@ class TutorViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def unblock_day(self, request, pk=None):
         TutorBlockedDay.objects.filter(id=request.data.get("id")).delete()
-        invalidate_weekly_slots_cache_for_tutor(tutor.id)
+        invalidate_availability_adhoc(tutor.id)
 
         return Response({"status": "ok"})
-
-    @action(detail=True, methods=["get"])
-    def weekly_slots(self, request, pk=None):
-        # start = time.perf_counter()
-
-        user = self.get_object()
-        tutor = user.get_tutor_profile()
-
-        # Optional student
-        student_id = request.query_params.get("student")
-        student = User.objects.filter(pk=student_id).first() if student_id else None
-
-        # Parse week_start
-        week_start_str = request.query_params.get("week_start")
-        if not week_start_str:
-            return Response({"error": "week_start is required (YYYY-MM-DD)"}, status=400)
-
-        try:
-            raw_date = datetime.strptime(week_start_str, "%Y-%m-%d").date()
-        except ValueError:
-            return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=400)
-
-        week_start = get_sunday_start(raw_date)
-
-        # Use cached version
-        week_data = get_cached_weekly_slots(tutor, week_start, student)
-
-        # print(f"Weekly slots build took {time.perf_counter() - start:.4f} seconds")
-
-        return Response({"week": week_data}, status=200)
 
     @action(detail=True, methods=["get"])
     def session_settings(self, request, pk=None):
@@ -763,164 +791,147 @@ class TutorViewSet(viewsets.ModelViewSet):
         serializer = TutorSerializer(tutor)
         return Response(serializer.data)
 
-    @action(detail=True, methods=["post"], url_path="create_weekly_booking")
-    def create_weekly_booking(self, request, pk=None):
-        tutor_user = self.get_object()  # the tutor in the URL
-        tutor_profile = tutor_user.get_tutor_profile()
 
+    # --------------- UNIFIED FUNCTIONS ----------------------
+
+    @action(detail=True, methods=["post"], url_path="create_booking")
+    def create_booking(self, request, pk=None):
+        tutor = self.get_object()
+        booking_type = request.data.get("booking_type")
         student_id = request.data.get("student_id")
-        weekday = request.data.get("weekday")
-        time_str = request.data.get("time")
-        if isinstance(time_str, str) and len(time_str) >= 5: time_str = time_str[:5]
-        print("Create weekly appointment api:", student_id, weekday, time_str)
 
-        if student_id is None or weekday is None or time_str is None:
-            return Response(
-                {"error": "student_id, weekday, and time are required"},
-                status=400
-            )
+        if not student_id:
+            return Response({"ok": False, "error": "student_id required"}, status=400)
 
-        try:
-            weekday = int(weekday)
-            if weekday < 0 or weekday > 6:
-                raise ValueError()
-        except ValueError:
-            return Response({"error": "weekday must be an integer 0–6"}, status=400)
+        student = User.objects.filter(id=student_id).first()
+        if not student:
+            return Response({"ok": False, "error": "Student not found"}, status=404)
 
-        # Parse time
-        try:
-            start_time = datetime.strptime(time_str, "%H:%M").time()
-        except ValueError:
-            return Response({"error": "Invalid time format. Use HH:MM"}, status=400)
+        # WEEKLY BOOKING
+        if booking_type == "weekly":
+            weekday = request.data.get("weekday")
+            time_str = request.data.get("time")
 
-        try:
-            student = User.objects.get(id=student_id)
-        except User.DoesNotExist:
-            return Response({"error": "Student not found"}, status=404)
+            if weekday is None or not time_str:
+                return Response({"ok": False, "error": "weekday and time required"}, status=400)
 
-        linked_tutor = student.get_tutor()
-        if not linked_tutor or linked_tutor.id != tutor_user.id:
-            return Response(
-                {"error": "This student is not assigned to this tutor"},
-                status=403
-            )
-
-        try:
-            wb = student.create_weekly_booking(weekday, start_time)
-        except ValueError as e:
-            return Response({"error": str(e)}, status=400)
-
-        invalidate_weekly_availability_cache_for_tutor(tutor_user.id)
-        return Response({
-            "ok": True,
-            "id": wb.id,
-            "weekday": wb.weekday,
-            "start_time": wb.start_time,
-            "end_time": wb.end_time,
-            "student_id": student.id,
-            "student_name": student.first_name,
-        })
-
-    @action(detail=True, methods=["post"], url_path="check_and_book")
-    def check_and_book(self, request, pk=None):
-        print("Check and book")
-        user = self.get_object()
-        tutor = user.get_tutor_profile()
-
-        student_id = request.data["student_id"]
-        student = User.objects.get(pk=student_id)
-        date_requested = request.data["date"]
-        time_requested = request.data["time"]
-        repeat = request.data.get("repeat_weekly", False)
-
-        # Parse date + time
-        date_dt = datetime.fromisoformat(date_requested).date()
-        start_t = datetime.strptime(time_requested, "%H:%M").time()
-
-        # Compute end time
-        session_minutes = tutor.default_session_minutes
-        end_t = (datetime.combine(date_dt, start_t) +
-                 timedelta(minutes=session_minutes)).time()
-
-        weeks = 12 if repeat else 1
-
-        created = 0
-        results = []  # ← collect success/failure for each week
-
-        for i in range(weeks):
-            this_date = date_dt + timedelta(weeks=i)
-            print("Check and Book:", this_date)
-            # Check availability using your existing logic
-            status = tutor.appointment_status(this_date, start_t)
-
-            if status != "available":
-                results.append({
-                    "week": i + 1,
-                    "date": str(this_date),
-                    "time": start_t.strftime("%H:%M"),
-                    "success": False,
-                    "reason": status,
-                })
-                continue  # ← keep going to next week
-
-            # Build aware datetimes
-            naive_start = datetime.combine(this_date, start_t)
-            naive_end = datetime.combine(this_date, end_t)
-            start_dt = make_aware(naive_start)
-            end_dt = make_aware(naive_end)
+            start_time, end_time = get_times(time_str, tutor.default_session_minutes)
 
             try:
-                Appointment.objects.create(
-                    tutor=user,
-                    student_id=student_id,
+                weekly = BookingWeekly.objects.create(
+                    tutor=tutor,
+                    student=student,
+                    weekday=weekday,
+                    start_time=start_time,
+                    end_time=end_time,
+                    confirmed=True,
+                )
+            except Exception as e:
+                return Response({"ok": False, "error": str(e)}, status=400)
+
+            invalidate_weekly_bookings(tutor.id)
+            return Response({"ok": True, "weekly_id": weekly.id})
+
+        # ADHOC BOOKING
+        if booking_type == "adhoc":
+            dt_str = request.data.get("datetime")
+            start_dt, end_dt = get_datetimes(dt_str, tutor.default_session_minutes)
+
+            try:
+                booking = BookingAdhoc.objects.create(
+                    tutor=tutor,
+                    student=student,
                     start_datetime=start_dt,
                     end_datetime=end_dt,
-                    status="booked",
-                    created_by=student,
+                    confirmed=True,
                 )
-                created += 1
-                results.append({
-                    "week": i + 1,
-                    "date": str(this_date),
-                    "time": start_t.strftime("%H:%M"),
-                    "success": True,
-                })
             except Exception as e:
-                # Database or validation error
-                results.append({
-                    "week": i + 1,
-                    "date": str(this_date),
-                    "time": start_t.strftime("%H:%M"),
-                    "success": False,
-                    "reason": str(e),
-                })
-        invalidate_weekly_slots_cache_for_tutor(tutor.id)
+                return Response({"ok": False, "error": str(e)}, status=400)
 
-        return Response({
-            "status": "ok" if created > 0 else "error",
-            "created": created,
-            "results": results,
-        })
+            # Clear cached calendar
+            invalidate_adhoc_bookings(tutor.id)
 
-    @action(detail=True, methods=["post"], url_path="delete_booking")
-    def delete_booking(self, request, pk=None):
-        user = self.get_object()  # the tutor in tutor_view OR the tutor of the student
+            return Response({"ok": True, "booking_id": booking.id})
+        return Response({"ok": False, "error": "Unknown booking type"}, status=400)
 
+    @action(detail=True, methods=["POST"], url_path="booking_action")
+    def booking_action(self, request, pk=None):
+        tutor = self.get_object()
 
-        booking_id = request.data.get("booking_id")
-        print("Delete Booking (booking_id):", booking_id)
-        if not booking_id:
-            return Response({"error": "booking_id is required"}, status=400)
+        booking_id = request.data.get("id")
+        booking_type = request.data.get("type")
+        action = request.data.get("action")
+        print("Booking action:", booking_type, action)
+
+        if not booking_id or not booking_type or not action:
+            return Response({"ok": False, "error": "Missing id, type, or action."}, status=400)
+
+        # Select model
+        booking_model = BookingWeekly
+        if booking_type == "adhoc":
+            booking_model = BookingAdhoc
+
+        # Fetch booking
         try:
-            appt = Appointment.objects.get(id=booking_id)
-        except Appointment.DoesNotExist:
-            return Response({"error": "Appointment not found"}, status=404)
+            booking = booking_model.objects.get(id=booking_id, tutor=tutor)
+        except booking_model.DoesNotExist:
+            return Response({"ok": False, "error": "Booking not found."}, status=404)
 
-        invalidate_weekly_slots_cache_for_tutor(appt.tutor.id)
+        # Perform action
+        if action == "confirm":
+            booking.confirmed = not booking.confirmed
+            booking.save()
+            update_booking_confirmed_in_cache(tutor.id, booking_id, booking_type, booking.confirmed)
+            return Response({"ok": True, "confirmed": booking.confirmed})
 
-        appt.delete()
-        return Response({"status": "ok", "message": "Booking deleted"})
+        if action == "edit" and booking_type != "adhoc":
+            weekday = request.data.get("weekday")
+            start_time_str = request.data.get("start_time")
+            duration = int(request.data.get("duration", 60))
+            start_time, end_time = get_times(start_time_str, duration)
 
+            booking.weekday = weekday
+            booking.start_time = start_time
+            booking.end_time = end_time
+            booking.save()
+            invalidate_weekly_bookings(tutor_id=tutor.id)
+            return Response({"ok": True, "edit": booking.id})
+
+        if action == "edit" and booking_type == "adhoc":
+            start_datetime_str = request.data.get("start_time")
+            duration = int(request.data.get("duration", 60))
+            start_time, end_time = get_datetimes(start_datetime_str, duration)
+            print("Edit adoc (start date and time):", start_time)
+
+            booking.start_datetime = start_time
+            booking.end_datetime = end_time
+            booking.save()
+            print("Edit adhoc (booking start_datetime:", booking.start_datetime)
+            invalidate_adhoc_bookings(tutor_id=tutor.id)
+            return Response({"ok": True, "edit": booking.id})
+
+        if action == "skip":
+            booking.skip()
+            invalidate_weekly_bookings(tutor_id=tutor.id)
+            return Response({"ok": True, "skip": booking.id})
+
+        if action == "remove_skip":
+            booking.remove_skip()
+            invalidate_weekly_bookings(tutor_id=tutor.id)
+            return Response({"ok": True, "remove_skip": booking.id})
+
+        if action == "delete":
+            if booking_type == "adhoc":
+                invalidate_availability_adhoc(tutor.id)
+                invalidate_adhoc_bookings(tutor.id)
+            else:
+                invalidate_weekly_slots(tutor.id)
+                invalidate_weekly_bookings(tutor.id)
+
+            booking.delete()
+            return Response({"ok": True, "deleted": True})
+
+        return Response({"ok": False, "error": "Unknown action."}, status=400)
 # -------------- STUDENT ---------------- #
 
 class StudentViewSet(viewsets.ModelViewSet):
@@ -941,26 +952,9 @@ class StudentViewSet(viewsets.ModelViewSet):
         tutor_user = user.get_tutor()
         tutor_name = tutor_user.get_full_name() or tutor_user.username if tutor_user else None
         tutor_id = tutor_user.id if tutor_user else None
-
-        next_weekly = user.next_weekly_booking()
-        next_ad_hoc = user.next_booking()
-
-        next_weekly_data = None
-        if next_weekly:
-            next_weekly_data = {
-                "id": next_weekly["id"],
-                "start": next_weekly["start"].isoformat(),
-                "end": next_weekly["end"].isoformat(),
-            }
-            # print("Next weekly data:", next_weekly_data)
-
-        next_ad_hoc_data = None
-        if next_ad_hoc:
-            next_ad_hoc_data = {
-                "id": next_ad_hoc.id,
-                "start": next_ad_hoc.start_datetime,
-                "end": next_ad_hoc.end_datetime,
-            }
+        state = user.booking_mode()
+        tutor_mobile = tutor_user.get_tutor_profile().mobile
+        tutor_mobile = format_mobile(tutor_mobile)
 
         data = {
             "id": user.id,
@@ -968,16 +962,19 @@ class StudentViewSet(viewsets.ModelViewSet):
             "email": user.email,
             "tutor_id": tutor_id,
             "tutor_name": tutor_name,
+            "tutor_mobile": tutor_mobile,
             "year_level": student_profile.year_level,
             "area_of_study": student_profile.area_of_study,
-            "next_weekly_booking": next_weekly_data,
-            "next_ad_hoc_booking": next_ad_hoc_data,
+            "booking_mode": state["mode"],
+            "next_booking": state["next_booking"],
+            "next_weekly_booking": state["weekly"],
+            "next_ad_hoc_booking": state["adhoc"],
         }
 
         return Response(data)
 
     @action(detail=True, methods=["get"])
-    def weekly_availability(self, request, pk=None):
+    def booking(self, request, pk=None):
         student_profile = self.get_object()
         student = student_profile.user
 
@@ -985,10 +982,24 @@ class StudentViewSet(viewsets.ModelViewSet):
         if not tutor:
             return Response({"error": "Student has no tutor assigned"}, status=400)
 
-        full = get_cached_weekly_availability(tutor)
-        safe = mask_weekly_availability_for_student(full, student.id)
+        start_date = (date.today() + timedelta(days=1)).isoformat()
 
-        return Response(safe)
+        weekly_slots = get_weekly_slots(tutor)
+        weekly_bookings = get_weekly_bookings(tutor)
+        weekly_bookings = mask_weekly_bookings(weekly_bookings, student.id)
+
+        adhoc_slots = get_availability_adhoc(tutor, start_date)
+        adhoc_bookings = get_adhoc_bookings(tutor, start_date)
+        adhoc_bookings = mask_adhoc_bookings(adhoc_bookings, student.id)
+
+        print()
+
+        return Response({
+            "weekly_slots": weekly_slots,
+            "weekly_bookings": weekly_bookings,
+            "adhoc_slots": adhoc_slots,
+            "adhoc_bookings": adhoc_bookings,
+        })
 
     @action(detail=False, methods=["post"])
     def create_student(self, request):
@@ -1023,6 +1034,8 @@ class StudentViewSet(viewsets.ModelViewSet):
                 student=student
             )
 
+        invalidate_students_cache_for_tutor(tutor_id)
+
         return Response({
             "id": student.id,
             "name": student.first_name,
@@ -1039,3 +1052,148 @@ class NoteViewSet(viewsets.ModelViewSet):
         user = self.request.user if self.request.user.is_authenticated else None
         serializer.save(author=user)
 
+class BookingWeeklyViewSet(viewsets.ModelViewSet):
+    queryset = BookingWeekly.objects.all()
+    serializer_class = BookingWeeklySerializer
+
+    @action(detail=True, methods=["post"])
+    def skip(self, request, pk=None):
+        booking = self.get_object()
+        booking.skip()
+        invalidate_weekly_slots(booking.tutor.id)
+        return Response({
+            "ok": True,
+            "id": booking.id,
+        })
+
+    @action(detail=True, methods=["post"])
+    def remove_skip(self, request, pk=None):
+        booking = self.get_object()
+        booking.remove_skip()
+        invalidate_weekly_slots(booking.tutor.id)
+        return Response({
+            "ok": True,
+            "id": booking.id,
+        })
+
+
+class BookingAdhocViewSet(viewsets.ModelViewSet):
+    queryset = BookingAdhoc.objects.all()
+    serializer_class = BookingAdhocSerializer
+
+    def create(self, request, *args, **kwargs):
+        print("BookingAdhoc api - create")
+        student_id = request.data.get("student_id")
+        start_str = request.data.get("start")
+        if start_str.endswith("Z"): start_str = start_str.replace("Z", "+00:00")
+
+        if not student_id or not start_str:
+            print("Adhoc create", student_id, start_str)
+            return Response({"error": "student_id and start are required"}, status=400)
+
+        try:
+            start_dt = datetime.fromisoformat(start_str)
+            start_dt = timezone.localtime(start_dt, local_tz)
+
+        except ValueError:
+            print("Adhoc create - datestring:", start_str)
+            return Response({"error": "Invalid datetime format"}, status=400)
+
+        student = User.objects.get(id=student_id)
+
+        try:
+            booking = student.replace_this_weeks_adhoc(start_dt)
+
+        except ValueError as e:
+            print("Adhoc create - Booking error", str(e))
+            return Response({"error": str(e)}, status=400)
+
+        serializer = self.get_serializer(booking)
+        return Response(serializer.data, status=201)
+
+    def destroy(self, request, *args, **kwargs):
+        booking = self.get_object()
+        booking.delete()
+        return Response(status=204)
+
+    from rest_framework.decorators import action
+    from rest_framework.response import Response
+    from rest_framework import status
+
+class BookingAdhocViewSet(viewsets.ModelViewSet):
+    queryset = BookingAdhoc.objects.all()
+    serializer_class = BookingAdhocSerializer
+
+    @action(detail=False, methods=["post"], url_path="delete_override")
+    def delete_override(self, request):
+        print("Delete override")
+        student_id = request.data.get("student_id")
+        if not student_id:
+            return Response({"error": "student_id required"}, status=400)
+
+        student = User.objects.filter(id=student_id).first()
+        if not student:
+            return Response({"error": "Student not found"}, status=404)
+
+        # Get the next ad-hoc booking (the override)
+        override = student.next_ad_hoc_booking()
+        if not override:
+            return Response({"ok": True, "message": "No override to delete"})
+
+        BookingAdhoc.objects.filter(id=override["id"]).delete()
+        print("Deleted")
+
+        # Invalidate caches
+        tutor_id = student.get_tutor().id
+        invalidate_availability_adhoc(tutor_id)
+        invalidate_adhoc_bookings(tutor_id)
+
+        return Response({"ok": True})
+
+    @action(detail=False, methods=["post"], url_path="modify_one_week")
+    def modify_one_week(self, request):
+        print("Modify one week")
+        student_id = request.data.get("student_id")
+        start_str = request.data.get("start")
+
+        if not student_id or not start_str:
+            print("No student id or start str")
+            return Response({"error": "student_id and start required"}, status=400)
+
+        student = User.objects.filter(id=student_id).first()
+        if not student:
+            print("Student not found")
+            return Response({"error": "Student not found"}, status=404)
+
+        try:
+            start_str = start_str.replace("Z", "+00:00")
+            start_dt = datetime.fromisoformat(start_str)
+            start_dt = timezone.localtime(start_dt, local_tz)
+
+        except Exception:
+            print("Invalid start datetime:", start_str)
+            return Response({"error": "Invalid start datetime"}, status=400)
+
+        # 1. Delete existing override (if any)
+        override = student.next_ad_hoc_booking()
+        if override:
+            BookingAdhoc.objects.filter(id=override["id"]).delete()
+
+        # 2. Create new override
+        new_booking = student.booking_create_adhoc(start_dt)
+
+        # 3. Pause weekly booking if needed
+        weekly = student.next_weekly_booking()
+
+        if weekly:
+            weekly_id = weekly["id"]
+            weekly = BookingWeekly.objects.get(id=weekly_id)
+            weekly.skip()
+
+        tutor_id = student.get_tutor().id
+        invalidate_weekly_bookings(tutor_id)
+        invalidate_adhoc_bookings(tutor_id)
+
+        return Response({
+            "ok": True,
+        })

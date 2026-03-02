@@ -1,0 +1,132 @@
+        <h1>Existing Bookings</h1>
+
+        {weeklyBookings && (
+          <div className="mt-4">
+            <div
+              className="weekly-booking-grid"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(7, 1fr)",
+                gap: "0px",
+              }}
+            >
+              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, weekday) => {
+                const dayBookings = (weeklyBookings[weekday] || []).slice().sort((a: any, b: any) => {
+                  const t1 = a.start_time || a.time || a.start;
+                  const t2 = b.start_time || b.time || b.start;
+                  return t1.localeCompare(t2);
+                });
+
+                return (
+                  <div
+                    key={weekday}
+                    className="day-column"
+                    style={{
+                      border: "1px solid #ccc",
+                      padding: "10px",
+                      borderRadius: "6px",
+                      minHeight: "120px",
+                    }}
+                  >
+                    <h5 style={{ textAlign: "center" }}>{day}</h5>
+
+                    {dayBookings.map((b: any, idx: number) => {
+                      const time = b.start_time || b.time || b.start || "";
+                      const isEditing =
+                        editingBooking &&
+                        editingBooking.weekday === weekday &&
+                        editingBooking.index === idx;
+
+                      return (
+                        <div key={idx}>
+                          <button
+                            className="card w-100 text-start"
+                            style={{
+                              padding: "6px 8px",
+                              marginTop: "6px",
+                              borderRadius: "6px",
+                              border: "1px solid #ddd",
+                              background: b.confirmed ? "#CFF4FC" : "#f8f9fa",
+                              fontSize: "0.8rem",
+                            }}
+                            onClick={() => openEditor(weekday, idx, b)}
+                          >
+                            <strong>{time ? formatTime(time) : ""}</strong>{" "}
+                            <b>{b.student_name}</b>{" "}
+                            {(() => {
+                              const duration = computeDuration(b.start_time, b.end_time);
+                              return duration !== 60 ? `(${duration}m)` : "";
+                            })()}
+                            {!b.confirmed && (
+                              <span style={{ color: "#b00", fontWeight: 600 }}>
+                                (unconfirmed)
+                              </span>
+                            )}
+                          </button>
+
+                          {isEditing && (
+                            <div className="border rounded p-2 mt-2" style={{ background: "#fff" }}>
+                              <div className="mb-2">
+                                <label className="form-label">Start Time</label>
+                                <input
+                                  type="time"
+                                  className="form-control"
+                                  value={editStart}
+                                  onChange={(e) => setEditStart(e.target.value)}
+                                />
+                              </div>
+
+                              <div className="mb-2">
+                                <label className="form-label">Duration (minutes)</label>
+                                <input
+                                  type="number"
+                                  className="form-control"
+                                  value={editDuration}
+                                  onChange={(e) => setEditDuration(Number(e.target.value))}
+                                />
+                              </div>
+
+                              <div className="d-flex gap-2 mt-3">
+                                <button
+                                  className="btn btn-danger ms-auto"
+                                  onClick={() => handleDeleteWeeklyBooking(weekday, b.start_time)}
+                                >
+                                  Delete
+                                </button>
+
+                                <button
+                                  className="btn btn-secondary"
+                                  onClick={() => setEditingBooking(null)}
+                                >
+                                  Cancel
+                                </button>
+
+                                <button
+                                  className="btn btn-success"
+                                  onClick={() =>
+                                    handleSaveWeeklyEdit(weekday, b, editStart, editDuration)
+                                  }
+                                  disabled={editLoading}
+                                >
+                                  {editLoading ? "Saving…" : "Save"}
+                                </button>
+
+                                <button
+                                  className="btn btn-primary"
+                                  onClick={() => handleConfirmWeeklyBooking(b.id)}
+                                  disabled={confirmLoading === b.id}
+                                >
+                                  {confirmLoading === b.id ? "Confirming…" : "Confirm"}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}

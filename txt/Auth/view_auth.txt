@@ -1,0 +1,92 @@
+class AuthViewSet(viewsets.ViewSet):
+    permission_classes = [AllowAny]
+
+    @action(detail=False, methods=["get"])
+    def me(self, request):
+        user = request.user
+
+        return Response({
+            "id": user.id,
+            "username": user.username,
+            "role": user.role,
+            "first_name": user.first_name,
+        })
+
+    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    def dev_login(self, request):
+        username = request.data.get("username")
+
+        dev_users = {
+            "admin": "admin",
+            "alex": "superalexrobinson@gmail.com",
+            "blair": "Blair",
+        }
+
+        if username not in dev_users:
+            return Response({"error": "Unknown dev user"}, status=400)
+
+        try:
+            user = User.objects.get(username=dev_users[username])
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=404)
+
+        # Force login (no password)
+        login(request, user)
+
+        # Return the same structure as your normal login
+        return Response({
+            "id": user.id,
+            "username": user.username,
+            "first_name": user.first_name,
+            "role": user.role,
+        })
+
+    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    def register(self, request):
+        email = request.data.get("email")
+        password = request.data.get("password")
+        role = request.data.get("role")
+
+        if not email or not password or not role:
+            return Response({"error": "Missing fields"}, status=400)
+
+        if role not in ["tutor", "parent", "student"]:
+            return Response({"error": "Invalid role"}, status=400)
+
+        if User.objects.filter(username=email).exists():
+            return Response({"error": "Email already registered"}, status=400)
+
+        user = User.objects.create(
+            username=email,
+            email=email,
+            password=make_password(password),
+            role=role,
+        )
+
+        login(request, user)
+
+        return Response({
+            "id": user.id,
+            "username": user.username,
+            "role": user.role,
+            "first_name": user.first_name,
+        })
+
+    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    def login(self, request):
+        email = request.data.get("email")
+        password = request.data.get("password")
+
+        user = authenticate(request, username=email, password=password)
+
+        if user is None:
+            return Response({"error": "Invalid credentials"}, status=400)
+
+        login(request, user)
+
+        return Response({
+            "id": user.id,
+            "username": user.username,
+            "role": user.role,
+            "first_name": user.first_name,
+        })

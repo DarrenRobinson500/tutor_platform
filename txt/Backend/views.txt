@@ -632,7 +632,7 @@ class TutorViewSet(viewsets.ModelViewSet):
             start_time=start,
             end_time=end,
         )
-        invalidate_weekly_slots_cache_for_tutor(tutor.id)
+        invalidate_availability_adhoc(tutor.id)
 
         return Response({"id": a.id})
 
