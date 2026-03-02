@@ -881,7 +881,7 @@ class TutorViewSet(viewsets.ModelViewSet):
         if action == "confirm":
             booking.confirmed = not booking.confirmed
             booking.save()
-            update_booking_confirmed_in_cache(tutor.id, booking_id, booking_type, booking.confirmed)
+            update_booking_caches(booking, action)
             return Response({"ok": True, "confirmed": booking.confirmed})
 
         if action == "edit" and booking_type != "adhoc":
@@ -894,44 +894,39 @@ class TutorViewSet(viewsets.ModelViewSet):
             booking.start_time = start_time
             booking.end_time = end_time
             booking.save()
-            invalidate_weekly_bookings(tutor_id=tutor.id)
+            update_booking_caches(booking, action)
+
             return Response({"ok": True, "edit": booking.id})
 
         if action == "edit" and booking_type == "adhoc":
             start_datetime_str = request.data.get("start_time")
             duration = int(request.data.get("duration", 60))
             start_time, end_time = get_datetimes(start_datetime_str, duration)
-            print("Edit adoc (start date and time):", start_time)
 
             booking.start_datetime = start_time
             booking.end_datetime = end_time
             booking.save()
-            print("Edit adhoc (booking start_datetime:", booking.start_datetime)
-            invalidate_adhoc_bookings(tutor_id=tutor.id)
+            update_booking_caches(booking, action)
+
             return Response({"ok": True, "edit": booking.id})
 
         if action == "skip":
             booking.skip()
-            invalidate_weekly_bookings(tutor_id=tutor.id)
+            update_booking_caches(booking, action)
             return Response({"ok": True, "skip": booking.id})
 
         if action == "remove_skip":
             booking.remove_skip()
-            invalidate_weekly_bookings(tutor_id=tutor.id)
+            update_booking_caches(booking, action)
             return Response({"ok": True, "remove_skip": booking.id})
 
         if action == "delete":
-            if booking_type == "adhoc":
-                invalidate_availability_adhoc(tutor.id)
-                invalidate_adhoc_bookings(tutor.id)
-            else:
-                invalidate_weekly_slots(tutor.id)
-                invalidate_weekly_bookings(tutor.id)
-
+            update_booking_caches(booking, action)
             booking.delete()
             return Response({"ok": True, "deleted": True})
 
         return Response({"ok": False, "error": "Unknown action."}, status=400)
+
 # -------------- STUDENT ---------------- #
 
 class StudentViewSet(viewsets.ModelViewSet):

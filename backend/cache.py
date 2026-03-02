@@ -189,6 +189,65 @@ def update_booking_confirmed_in_cache(tutor_id, booking_id, booking_type, new_va
                         return
         return
 
+def update_booking_caches(booking, action):
+    tutor = booking.tutor
+    tutor_id = tutor.id
+
+    is_weekly = isinstance(booking, BookingWeekly)
+    is_adhoc = isinstance(booking, BookingAdhoc)
+
+    # ---------------------------------------------------
+    # WEEKLY BOOKINGS
+    # ---------------------------------------------------
+    if is_weekly:
+        weekly = WEEKLY_BOOKINGS_CACHE.get(tutor_id)
+
+        if weekly:
+            # Remove old entry
+            for weekday, items in weekly.items():
+                weekly[weekday] = [b for b in items if b.get("id") != booking.id]
+
+            # Reinsert unless deleted
+            if action != "delete":
+                weekday = booking.weekday
+                weekly.setdefault(weekday, [])
+                weekly[weekday].append(booking.to_dict())
+
+        # Only invalidate slots for time-changing actions
+        if action not in ("confirm"):
+            WEEKLY_SLOTS_CACHE.pop(tutor_id, None)
+
+        return
+
+    # ---------------------------------------------------
+    # ADHOC BOOKINGS
+    # ---------------------------------------------------
+    if is_adhoc:
+        # Find all cached weeks for this tutor
+        keys = [(tid, week_start)
+                for (tid, week_start) in ADHOC_BOOKINGS_CACHE.keys()
+                if tid == tutor_id]
+
+        for key in keys:
+            bookings_by_date = ADHOC_BOOKINGS_CACHE[key]
+
+            # Remove old entry
+            for day_str, items in bookings_by_date.items():
+                bookings_by_date[day_str] = [b for b in items if b.get("id") != booking.id]
+
+            # Reinsert unless deleted
+            if action != "delete":
+                day_str = booking.start_datetime.date().isoformat()
+                bookings_by_date.setdefault(day_str, [])
+                bookings_by_date[day_str].append(booking.to_dict())
+
+        # Only invalidate slots for time-changing actions
+        if action not in ("confirm"):
+            for key in keys:
+                ADHOC_SLOTS_CACHE.pop(key, None)
+
+        return
+
 # ----------SKILLS ---------------
 
 

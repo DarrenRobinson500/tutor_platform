@@ -164,6 +164,30 @@ def mask_weekly_bookings(weekly_bookings, student_id):
 
     return safe
 
+# ---------- COMBINED BOOKINGS ---------------
+
+def update_booking_confirmed_in_cache(tutor_id, booking_id, booking_type, new_value):
+    if booking_type in ("weekly", "weekly_paused"):
+        weekly = WEEKLY_BOOKINGS_CACHE.get(tutor_id)
+        if not weekly:
+            return
+        for weekday, bookings in weekly.items():
+            for b in bookings:
+                if b.get("id") == booking_id:
+                    b["confirmed"] = new_value
+                    return
+        return
+
+    if booking_type == "adhoc":
+        for (tid, week_start), bookings_by_date in ADHOC_BOOKINGS_CACHE.items():
+            if tid != tutor_id:
+                continue
+            for day_str, bookings in bookings_by_date.items():
+                for b in bookings:
+                    if b.get("id") == booking_id:
+                        b["confirmed"] = new_value
+                        return
+        return
 
 # ----------SKILLS ---------------
 

@@ -156,12 +156,21 @@ REST_FRAMEWORK = {
 # ---------------------------------------------------------
 # CORS + CSRF (dynamic for dev + Railway + custom domain)
 # ---------------------------------------------------------
-# CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_CREDENTIALS = True
+
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOWED_ORIGINS = [
+        "https://greenlearning.vercel.app",
+    ]
+
+
+
 
 FRONTEND_URL = os.getenv("FRONTEND_URL")          # e.g. https://myfrontend.railway.app
 CUSTOM_FRONTEND = os.getenv("CUSTOM_FRONTEND")    # e.g. https://app.yourtutorbrand.com
 
-CORS_ALLOW_ALL_ORIGINS = True
 
 # CORS_ALLOWED_ORIGINS = [
 #     FRONTEND_URL,

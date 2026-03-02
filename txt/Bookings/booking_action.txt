@@ -1,0 +1,78 @@
+    @action(detail=True, methods=["POST"], url_path="booking_action")
+    def booking_action(self, request, pk=None):
+        tutor = self.get_object()
+
+        booking_id = request.data.get("id")
+        booking_type = request.data.get("type")
+        action = request.data.get("action")
+        print("Booking action:", booking_type, action)
+
+        if not booking_id or not booking_type or not action:
+            return Response({"ok": False, "error": "Missing id, type, or action."}, status=400)
+
+        # Select model
+        booking_model = BookingWeekly
+        if booking_type == "adhoc":
+            booking_model = BookingAdhoc
+
+        # Fetch booking
+        try:
+            booking = booking_model.objects.get(id=booking_id, tutor=tutor)
+        except booking_model.DoesNotExist:
+            return Response({"ok": False, "error": "Booking not found."}, status=404)
+
+        # Perform action
+        if action == "confirm":
+            booking.confirmed = not booking.confirmed
+            booking.save()
+            update_booking_confirmed_in_cache(tutor.id, booking_id, booking_type, booking.confirmed)
+            return Response({"ok": True, "confirmed": booking.confirmed})
+
+        if action == "edit" and booking_type != "adhoc":
+            weekday = request.data.get("weekday")
+            start_time_str = request.data.get("start_time")
+            duration = int(request.data.get("duration", 60))
+            start_time, end_time = get_times(start_time_str, duration)
+
+            booking.weekday = weekday
+            booking.start_time = start_time
+            booking.end_time = end_time
+            booking.save()
+            invalidate_weekly_bookings(tutor_id=tutor.id)
+            return Response({"ok": True, "edit": booking.id})
+
+        if action == "edit" and booking_type == "adhoc":
+            start_datetime_str = request.data.get("start_time")
+            duration = int(request.data.get("duration", 60))
+            start_time, end_time = get_datetimes(start_datetime_str, duration)
+            print("Edit adoc (start date and time):", start_time)
+
+            booking.start_datetime = start_time
+            booking.end_datetime = end_time
+            booking.save()
+            print("Edit adhoc (booking start_datetime:", booking.start_datetime)
+            invalidate_adhoc_bookings(tutor_id=tutor.id)
+            return Response({"ok": True, "edit": booking.id})
+
+        if action == "skip":
+            booking.skip()
+            invalidate_weekly_bookings(tutor_id=tutor.id)
+            return Response({"ok": True, "skip": booking.id})
+
+        if action == "remove_skip":
+            booking.remove_skip()
+            invalidate_weekly_bookings(tutor_id=tutor.id)
+            return Response({"ok": True, "remove_skip": booking.id})
+
+        if action == "delete":
+            if booking_type == "adhoc":
+                invalidate_availability_adhoc(tutor.id)
+                invalidate_adhoc_bookings(tutor.id)
+            else:
+                invalidate_weekly_slots(tutor.id)
+                invalidate_weekly_bookings(tutor.id)
+
+            booking.delete()
+            return Response({"ok": True, "deleted": True})
+
+        return Response({"ok": False, "error": "Unknown action."}, status=400)
