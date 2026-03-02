@@ -97,7 +97,7 @@ class AuthViewSet(viewsets.ViewSet):
         )
 
         if user.role == "tutor":
-            profile = TutorProfile.create()
+            profile = TutorProfile.objects.create(tutor=user)
 
         login(request, user)
 
