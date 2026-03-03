@@ -74,7 +74,7 @@ class AuthViewSet(viewsets.ViewSet):
             "role": user.role,
         })
 
-    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    @action(detail=False, methods=["post"], permission_classes=[AllowAny], authentication_classes=[],)
     def register(self, request):
         email = request.data.get("email")
         password = request.data.get("password")
@@ -109,7 +109,7 @@ class AuthViewSet(viewsets.ViewSet):
         })
 
     @method_decorator(csrf_exempt, name='login')
-    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    @action(detail=False, methods=["post"], permission_classes=[AllowAny], authentication_classes=[],)
     def login(self, request):
         email = request.data.get("email")
         password = request.data.get("password")
