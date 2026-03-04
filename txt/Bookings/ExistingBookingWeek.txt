@@ -18,16 +18,25 @@ interface DayData {
 
 interface ExistingBookingsWeekProps {
   week: Record<string, DayData>;
-  onEdit: (date: string, booking: Booking, index: number) => void;
-  handleBookingAction: (bookingId: number, bookingType: string, action: "confirm" | "delete" | "skip" | "remove_skip") => void;
+  handleBookingAction: (
+    bookingId: number,
+    bookingType: string,
+    action: "confirm" | "delete" | "skip" | "remove_skip" | "edit",
+    extra?: any
+  ) => void;
 }
 
 export function ExistingBookingsWeek({
   week,
-  onEdit,
   handleBookingAction,
 }: ExistingBookingsWeekProps) {
   const [expanded, setExpanded] = useState<{ date: string; index: number } | null>(null);
+
+  // Single editor state (safe)
+  const [editWeekday, setEditWeekday] = useState<number>(0);
+  const [editDate, setEditDate] = useState<string>("");
+  const [editTime, setEditTime] = useState<string>("16:00");
+  const [editDuration, setEditDuration] = useState<number>(60);
 
   const dates = Object.keys(week).sort();
 
@@ -46,12 +55,37 @@ export function ExistingBookingsWeek({
   };
 
   const bookingBackground = (type: string) => {
-    if (type === "weekly_paused") return "#E0E0E0"; // light grey
-    if (type === "weekly") return "#CFF4FC";        // blue
-    if (type === "adhoc") return "#FFF3CD";         // yellow
-    return "#FFF";                                  // fallback
+    if (type === "weekly_paused") return "#E0E0E0";
+    if (type === "weekly") return "#CFF4FC";
+    if (type === "adhoc") return "#FFF3CD";
+    return "#FFF";
   };
 
+  const openEditor = (dateStr: string, b: Booking) => {
+    setEditDate(dateStr);
+    setEditTime(b.start_time);
+    setEditDuration(b.duration_minutes || 60);
+    setEditWeekday(new Date(dateStr).getDay());
+  };
+
+  const saveEdit = (b: Booking) => {
+    if (b.booking_type === "adhoc") {
+      const start_datetime = `${editDate}T${editTime}`;
+        handleBookingAction(b.id!, b.booking_type, "edit", {
+          start_time: `${editDate}T${editTime}`,
+          duration: editDuration,
+        });
+    } else {
+        const pythonDay = (editWeekday + 6) % 7;
+        handleBookingAction(b.id!, b.booking_type, "edit", {
+          weekday: pythonDay,
+          start_time: editTime,
+          duration: editDuration,
+        });
+
+    }
+    setExpanded(null);
+  };
 
   return (
     <div
@@ -71,7 +105,6 @@ export function ExistingBookingsWeek({
           month: "short",
         });
 
-
         return (
           <div
             key={dateStr}
@@ -84,9 +117,7 @@ export function ExistingBookingsWeek({
               background: dayBackground(day.day_status),
             }}
           >
-            <h5 style={{ textAlign: "center" }}>
-              {formatted}
-            </h5>
+            <h5 style={{ textAlign: "center" }}>{formatted}</h5>
 
             {day.bookings.map((b, idx) => {
               const isOpen =
@@ -107,9 +138,14 @@ export function ExistingBookingsWeek({
                       background: bookingBackground(b.booking_type),
                       fontSize: "0.8rem",
                     }}
-                    onClick={() =>
-                      setExpanded(isOpen ? null : { date: dateStr, index: idx })
-                    }
+                    onClick={() => {
+                      if (isOpen) {
+                        setExpanded(null);
+                      } else {
+                        setExpanded({ date: dateStr, index: idx });
+                        openEditor(dateStr, b);
+                      }
+                    }}
                   >
                     <div>
                       <strong>{formatTime(b.start_time)}</strong>{" "}
@@ -121,15 +157,12 @@ export function ExistingBookingsWeek({
                       )}
                     </div>
 
-                    {/* Status line */}
                     <div style={{ fontSize: "0.7rem", color: "#555", marginTop: "2px" }}>
                       {b.booking_type === "weekly" && "Weekly"}
                       {b.booking_type === "weekly_paused" && "Weekly (paused)"}
                       {b.booking_type === "adhoc" && "One-off"}
-
                       {" | "}
                       {b.confirmed ? "Confirmed" : "Not confirmed"}
-
                     </div>
                   </button>
 
@@ -139,18 +172,97 @@ export function ExistingBookingsWeek({
                       className="border rounded p-2 mt-2"
                       style={{ background: "#fff" }}
                     >
-                      <div className="d-flex gap-2 mt-2">
-
-                          {b.booking_type === "weekly_paused" ? (
-                            <button
-                              className="btn btn-warning btn-sm"
-                              onClick={() =>
-                                handleBookingAction(b.id!, b.booking_type, "remove_skip")
-                              }
+                      {/* WEEKLY EDITOR */}
+                      {b.booking_type !== "adhoc" && (
+                        <>
+                          <div className="mb-2">
+                            <label className="form-label">Weekday</label>
+                            <select
+                              className="form-select"
+                              value={editWeekday}
+                              onChange={(e) => setEditWeekday(Number(e.target.value))}
                             >
-                              Remove Skip
-                            </button>
-                          ) : (
+                              <option value={1}>Monday</option>
+                              <option value={2}>Tuesday</option>
+                              <option value={3}>Wednesday</option>
+                              <option value={4}>Thursday</option>
+                              <option value={5}>Friday</option>
+                              <option value={6}>Saturday</option>
+                              <option value={0}>Sunday</option>
+                            </select>
+                          </div>
+
+                          <div className="mb-2">
+                            <label className="form-label">Start Time</label>
+                            <input
+                              type="time"
+                              className="form-control"
+                              value={editTime}
+                              onChange={(e) => setEditTime(e.target.value)}
+                            />
+                          </div>
+
+                          <div className="mb-2">
+                            <label className="form-label">Duration (minutes)</label>
+                            <input
+                              type="number"
+                              className="form-control"
+                              value={editDuration}
+                              onChange={(e) => setEditDuration(Number(e.target.value))}
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      {/* ADHOC EDITOR */}
+                      {b.booking_type === "adhoc" && (
+                        <>
+                          <div className="mb-2">
+                            <label className="form-label">Date</label>
+                            <input
+                              type="date"
+                              className="form-control"
+                              value={editDate}
+                              onChange={(e) => setEditDate(e.target.value)}
+                            />
+                          </div>
+
+                          <div className="mb-2">
+                            <label className="form-label">Start Time</label>
+                            <input
+                              type="time"
+                              className="form-control"
+                              value={editTime}
+                              onChange={(e) => setEditTime(e.target.value)}
+                            />
+                          </div>
+
+                          <div className="mb-2">
+                            <label className="form-label">Duration (minutes)</label>
+                            <input
+                              type="number"
+                              className="form-control"
+                              value={editDuration}
+                              onChange={(e) => setEditDuration(Number(e.target.value))}
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      <div className="d-flex gap-2 mt-3">
+
+                        {/* Skip / Remove Skip */}
+                        {b.booking_type === "weekly_paused" ? (
+                          <button
+                            className="btn btn-warning btn-sm"
+                            onClick={() =>
+                              handleBookingAction(b.id!, b.booking_type, "remove_skip")
+                            }
+                          >
+                            Remove Skip
+                          </button>
+                        ) : (
+                          b.booking_type === "weekly" && (
                             <button
                               className="btn btn-warning btn-sm"
                               onClick={() =>
@@ -159,30 +271,37 @@ export function ExistingBookingsWeek({
                             >
                               Skip
                             </button>
-                          )}
+                          )
+                        )}
 
-
-
+                        {/* Save */}
                         <button
                           className="btn btn-success btn-sm"
-                          onClick={() => onEdit(dateStr, b, idx)}
+                          onClick={() => saveEdit(b)}
                         >
-                          Edit
+                          Save
                         </button>
 
+                        {/* Delete */}
                         <button
                           className="btn btn-danger btn-sm ms-auto"
-                            onClick={() => handleBookingAction(b.id!, b.booking_type, "delete")}
+                          onClick={() =>
+                            handleBookingAction(b.id!, b.booking_type, "delete")
+                          }
                         >
                           Delete
                         </button>
 
+                        {/* Confirm */}
                         <button
                           className="btn btn-primary btn-sm"
-                          onClick={() => handleBookingAction(b.id!, b.booking_type, "confirm")}
+                          onClick={() =>
+                            handleBookingAction(b.id!, b.booking_type, "confirm")
+                          }
                         >
                           Confirm
                         </button>
+
                       </div>
                     </div>
                   )}

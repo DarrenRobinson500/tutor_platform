@@ -60,13 +60,17 @@ def str_to_date(date_str):
     return dt
 
 def get_times(start_time_str, duration):
+    start_time_str = start_time_str.strip()
+    if len(start_time_str) == 8 and start_time_str.count(":") == 2:
+        start_time_str = start_time_str[:5]
     start_time = datetime.strptime(start_time_str, "%H:%M").time()
-    print("Get times:", start_time)
-    start_dt = datetime.combine(datetime.today(), start_time)
-    print("Get times:", start_dt)
-    end_dt = start_dt + timedelta(minutes=duration)
+
+    # Compute end time
+    end_dt = datetime.combine(date.today(), start_time) + timedelta(minutes=duration)
     end_time = end_dt.time()
+
     return start_time, end_time
+
 
 def get_datetimes(start_datetime_str, duration):
     start_dt = str_to_date(start_datetime_str)

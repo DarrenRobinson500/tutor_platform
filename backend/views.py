@@ -622,11 +622,11 @@ class TutorViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["get"])
     def students(self, request, pk=None):
-        # print("Getting students:", now)
+        print("Getting students:")
         tutor_user = self.get_object()
         data = get_cached_students_for_tutor(tutor_user)
         # print("Received students:", now)
-        # print(data)
+        print(data)
         return Response(data)
 
     @action(detail=True, methods=["get"], url_path="booking")
@@ -889,6 +889,7 @@ class TutorViewSet(viewsets.ModelViewSet):
             start_time_str = request.data.get("start_time")
             duration = int(request.data.get("duration", 60))
             start_time, end_time = get_times(start_time_str, duration)
+            print("Booking Action (Edit):", duration, start_time, end_time)
 
             booking.weekday = weekday
             booking.start_time = start_time
@@ -938,6 +939,30 @@ class StudentViewSet(viewsets.ModelViewSet):
         user = super().get_object()
         profile = user.get_student_profile()
         return profile
+
+    @action(detail=True, methods=["post"])
+    def edit(self, request, pk=None):
+        student_profile = self.get_object()
+        student = student_profile.user
+        fields = request.data.get("fields", {})
+        for key, value in fields.items():
+            if hasattr(student, key):
+                setattr(student, key, value)
+
+        student.save()
+
+        profile_fields = ["year_level", "area_of_study"]
+        changed = False
+
+        for key, value in fields.items():
+            if key in profile_fields:
+                setattr(student_profile, key, value)
+                changed = True
+        if changed:
+            student_profile.save()
+        update_student_cache(student)
+        return Response(build_student_summary(student), status=status.HTTP_200_OK)
+
 
     @action(detail=True, methods=["get"])
     def home(self, request, pk=None):

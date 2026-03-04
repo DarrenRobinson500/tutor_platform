@@ -25,15 +25,6 @@ days_needed_to_cancel = 1
 # from django_cte import With
 # from django.db.models.expressions import RawSQL
 
-def print_segments(segments):
-    for day in segments:
-        for seg in day['segments']:
-            # print(seg)
-            if seg["type"] != "outside":
-                print(f"{seg['time'].strftime('%H:%M')} — {seg['type']}")
-
-
-
 class User(AbstractUser):
     ROLE_CHOICES = [
         ("student", "Student"),
@@ -45,6 +36,7 @@ class User(AbstractUser):
     default_session_minutes = models.IntegerField(default=60)
     buffer_minutes = models.IntegerField(default=15)
     objects = UserManager()
+    active = models.BooleanField(default=True)
 
     def get_student_profile(self):
         if self.role == "student":
@@ -247,21 +239,13 @@ class User(AbstractUser):
         if self.role != "tutor":
             return {i: [] for i in range(7)}
 
-        bookings = BookingWeekly.objects.filter(tutor=self).select_related("student")
-
+        qs = (BookingWeekly.objects.filter(tutor=self).select_related("student"))
         booking_map = defaultdict(list)
-        for b in bookings:
-            booking_map[b.weekday].append({
-                "id": b.id,
-                "start_time": b.start_time.strftime("%H:%M"),
-                "end_time": b.end_time.strftime("%H:%M"),
-                "start_date": b.start_date,
-                "student_id": b.student.id,
-                "student_name": b.student.first_name,
-                "confirmed": b.confirmed,
-            })
 
-        # Ensure all 7 days exist
+        for b in qs:
+            data = b.to_dict()
+            booking_map[data["weekday"]].append(data)
+
         return {i: booking_map[i] for i in range(7)}
 
     def booking_list_adhoc(self, dates):
@@ -271,31 +255,21 @@ class User(AbstractUser):
         start_date = min(dates)
         end_date = max(dates)
 
-        qs = BookingAdhoc.objects.filter(
-            tutor=self,
-            start_datetime__date__range=(start_date, end_date),
+        qs = (
+            BookingAdhoc.objects
+            .filter(
+                tutor=self,
+                start_datetime__date__range=(start_date, end_date),
+            )
+            .select_related("student")
         )
 
         booking_map = {}
 
         for b in qs:
-            local_start = timezone.localtime(b.start_datetime)
-            local_end = timezone.localtime(b.end_datetime)
+            data = b.to_dict()
+            booking_map.setdefault(data["day_str"], []).append(data)
 
-            day_str = local_start.date().isoformat()
-            start_time = local_start.strftime("%H:%M")
-
-            booking_map.setdefault(day_str, []).append({
-                "id": b.id,
-                "start": local_start.isoformat(),
-                "end": local_end.isoformat(),
-                "student_id": b.student_id,
-                "student_name": b.student.first_name,
-                "confirmed": b.confirmed,
-                "start_time": start_time,
-            })
-
-        # print("Adhoc bookings:", booking_map)
         return booking_map
 
     def booking_create_weekly(self, weekday: int, start_time: time):
@@ -482,7 +456,11 @@ class BookingWeekly(models.Model):
         self.save(update_fields=["start_date"])
 
     def next_occurrence(self):
-        start_date = self.start_date if self.start_date and self.start_date > today else today
+        sd = self.start_date
+        if isinstance(sd, datetime):
+            sd = sd.date()
+        start_date = sd if sd and sd > today else today
+
         days_ahead = (self.weekday - start_date.weekday()) % 7
         # print("Next occurrence:", start_date, self.weekday, start_date.weekday(), days_ahead)
         next_booking_date = today + timedelta(days=days_ahead)
@@ -493,6 +471,44 @@ class BookingWeekly(models.Model):
 
     def student_can_edit(self):
         return self.next_occurrence() > now + timedelta(days=days_needed_to_cancel)
+
+    def to_dict(self):
+        # Reference date for localisation
+        ref_date = self.start_date or date.today()
+
+        # Build naive datetimes
+        naive_start = datetime.combine(ref_date, self.start_time)
+        naive_end = datetime.combine(ref_date, self.end_time)
+
+        # Make aware before localising
+        aware_start = timezone.make_aware(naive_start)
+        aware_end = timezone.make_aware(naive_end)
+
+        # Localise
+        local_start = timezone.localtime(aware_start)
+        local_end = timezone.localtime(aware_end)
+
+        # Compute duration
+        duration_minutes = int((local_end - local_start).total_seconds() // 60)
+
+        # Day string for grouping
+        day_str = ref_date.isoformat()
+
+        return {
+            "id": self.id,
+            "student_id": self.student.id if self.student else None,
+            "student_name": self.student.get_full_name() if self.student else None,
+            "weekday": self.weekday,
+            "start_time": local_start.time().isoformat(timespec="minutes"),
+            "end_time": local_end.time().isoformat(timespec="minutes"),
+            "start_date": day_str,
+            "day_str": day_str,
+            "confirmed": self.confirmed,
+            "duration_minutes": duration_minutes,
+            "booking_type": "weekly",
+            "student_can_edit": self.student_can_edit(),
+        }
+
 
 class BookingAdhoc(models.Model):
     tutor = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="appointment_tutor")
@@ -508,6 +524,31 @@ class BookingAdhoc(models.Model):
 
     def student_can_edit(self):
         return self.start_datetime > now + timedelta(days=days_needed_to_cancel)
+
+    def to_dict(self):
+        # Localise datetimes
+        local_start = timezone.localtime(self.start_datetime)
+        local_end = timezone.localtime(self.end_datetime)
+
+        # Compute duration
+        duration_minutes = int((local_end - local_start).total_seconds() // 60)
+
+        # Day string for grouping
+        day_str = local_start.date().isoformat()
+
+        return {
+            "id": self.id,
+            "student_id": self.student.id,
+            "student_name": self.student.get_full_name(),
+            "start_time": local_start.time().isoformat(timespec="minutes"),
+            "end_time": local_end.time().isoformat(timespec="minutes"),
+            "start_date": day_str,
+            "day_str": day_str,
+            "confirmed": self.confirmed,
+            "duration_minutes": duration_minutes,
+            "booking_type": "adhoc",
+            "student_can_edit": self.student_can_edit(),
+        }
 
 class ParentChild(models.Model):
     parent = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="children")
@@ -530,8 +571,6 @@ class StudentProfile(models.Model):
     year_level = models.CharField(max_length=50, blank=True, null=True)
     area_of_study = models.TextField(blank=True, null=True)
     def __str__(self): return f"Profile {self.user} {self.id}"
-    def next_booking(self):
-        return self.user.next_booking()
 
 
 class TutorProfile(models.Model):

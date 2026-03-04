@@ -5,44 +5,82 @@ from .models import *
 
 STUDENTS_CACHE = {}
 
+def build_student_summary(student):
+    profile = student.get_student_profile()
+
+    return {
+        "user_id": student.id,
+        "profile_id": profile.id,
+        "first_name": student.first_name,
+        "last_name": student.last_name,
+        "active": student.active,
+        "email": student.email,
+        "year_level": profile.year_level,
+        "area_of_study": profile.area_of_study,
+        "next_ad_hoc_booking": student.next_ad_hoc_booking(),
+        "next_weekly_booking": student.next_weekly_booking(),
+    }
+
+
 def get_cached_students_for_tutor(tutor):
     global STUDENTS_CACHE
     tutor_id = tutor.id
 
-    if not STUDENTS_CACHE or tutor_id not in STUDENTS_CACHE:
-        print("Building students cache")
-        # Build fresh
+    # Build fresh if missing
+    if tutor_id not in STUDENTS_CACHE:
         links = TutorStudent.objects.filter(tutor=tutor).select_related(
             "student__student_profile"
         )
 
         data = []
         for link in links:
-            student_user = link.student
-            profile = student_user.get_student_profile()
-            next_ad_hoc = student_user.next_ad_hoc_booking()
-            next_weekly = student_user.next_weekly_booking()
-
-            data.append({
-                "user_id": student_user.id,
-                "profile_id": profile.id,
-                "first_name": student_user.first_name,
-                "last_name": student_user.last_name,
-                "email": student_user.email,
-                "year_level": profile.year_level,
-                "area_of_study": profile.area_of_study,
-                "next_ad_hoc_booking": next_ad_hoc,
-                "next_weekly_booking": next_weekly,
-            })
+            student = link.student
+            summary = build_student_summary(student)
+            data.append(summary)
 
         STUDENTS_CACHE[tutor_id] = data
 
     return STUDENTS_CACHE[tutor_id]
 
-def invalidate_students_cache_for_tutor(tutor_id):
+def update_student_cache(student):
     global STUDENTS_CACHE
-    print("Invalidating student cache for tutor:", tutor_id)
-    STUDENTS_CACHE = {}
+
+    # Find all tutors linked to this student
+    links = TutorStudent.objects.filter(student=student).select_related("tutor")
+
+    # Build fresh summary for this student
+    updated_summary = build_student_summary(student)
+
+    # For each tutor, update their cache entry
+    tutor_id = student.get_tutor().id
+    students = STUDENTS_CACHE[tutor_id]
+
+    # Try to find existing entry
+    found = False
+    for i, entry in enumerate(students):
+        if entry["user_id"] == student.id:
+            students[i] = updated_summary
+            found = True
+            break
+
+    # If not found, add it
+    if not found:
+        students.append(updated_summary)
+
+    # Now remove the student from any tutor cache where they are no longer linked
+    tutor_ids_with_student = {link.tutor.id for link in links}
+
+    for tutor_id, students in STUDENTS_CACHE.items():
+        if tutor_id not in tutor_ids_with_student:
+            STUDENTS_CACHE[tutor_id] = [
+                s for s in students if s["user_id"] != student.id
+            ]
+
+
+# def invalidate_students_cache_for_tutor(tutor_id):
+#     global STUDENTS_CACHE
+#     print("Invalidating student cache for tutor:", tutor_id)
+#     STUDENTS_CACHE = {}
     # if tutor_id in STUDENTS_CACHE:
     #     del STUDENTS_CACHE[tutor_id]
 
