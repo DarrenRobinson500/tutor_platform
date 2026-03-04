@@ -65,12 +65,20 @@ class User(AbstractUser):
         return None
 
     def get_tutor_profile(user):
-        if user.role == "tutor": return TutorProfile.objects.filter(tutor=user).first()
+        # Tutor: ensure a TutorProfile exists
+        if user.role == "tutor":
+            profile, _ = TutorProfile.objects.get_or_create(tutor=user)
+            return profile
+
+        # Student: follow TutorStudent → TutorProfile
         if user.role == "student":
             link = TutorStudent.objects.filter(student=user).first()
             if not link:
                 return None
-            return TutorProfile.objects.filter(tutor=link.tutor).first()
+            profile, _ = TutorProfile.objects.get_or_create(tutor=link.tutor)
+            return profile
+
+        # Parent: follow ParentChild → TutorStudent → TutorProfile
         if user.role == "parent":
             child_link = ParentChild.objects.filter(parent=user).first()
             if not child_link:
@@ -78,7 +86,9 @@ class User(AbstractUser):
             tutor_link = TutorStudent.objects.filter(student=child_link.child).first()
             if not tutor_link:
                 return None
-            return TutorProfile.objects.filter(tutor=tutor_link.tutor).first()
+            profile, _ = TutorProfile.objects.get_or_create(tutor=tutor_link.tutor)
+            return profile
+
         return None
 
     def next_ad_hoc_booking(self):
