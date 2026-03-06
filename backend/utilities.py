@@ -43,6 +43,7 @@ def get_sunday_start(date):
     return date - timedelta(days=days_since_sunday)
 
 def format_mobile(mobile: str) -> str:
+    if not mobile: return ""
     digits = "".join(filter(str.isdigit, mobile))
     if len(digits) == 10:
         return f"{digits[0:4]} {digits[4:7]} {digits[7:10]}"
