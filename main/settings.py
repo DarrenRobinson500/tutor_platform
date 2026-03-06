@@ -36,8 +36,10 @@ SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
 # ]
 
 ALLOWED_HOSTS = ["*",]
+
 CSRF_TRUSTED_ORIGINS = [
     "https://web-production-f1310.up.railway.app",
+    "https://greenlearning.vercel.app",
 ]
 
 CUSTOM_DOMAIN = os.getenv("CUSTOM_DOMAIN")
