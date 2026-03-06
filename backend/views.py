@@ -626,7 +626,7 @@ class TutorViewSet(viewsets.ModelViewSet):
         tutor_user = self.get_object()
         data = get_cached_students_for_tutor(tutor_user)
         # print("Received students:", now)
-        print(data)
+        # print(data)
         return Response(data)
 
     @action(detail=True, methods=["get"], url_path="booking")
@@ -645,7 +645,7 @@ class TutorViewSet(viewsets.ModelViewSet):
         # Build two weeks using cached data
         week1 = get_combined_calendar(tutor, last_monday)
         week2 = get_combined_calendar(tutor, next_monday)
-        # print("Week 2:", week2)
+        print("Week 1:", week1)
 
         return Response({
             "students": students,
@@ -1023,46 +1023,57 @@ class StudentViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["post"])
     def create_student(self, request):
-        """
-        Create a new student User + StudentProfile.
-        """
         name = request.data.get("name")
         email = request.data.get("email")
         password = request.data.get("password") or User.objects.make_random_password()
         tutor_id = request.data.get("tutor_id")
-        invalidate_students_cache_for_tutor(tutor_id)
+        print("Create student: Tutor id:", tutor_id)
 
         if not name or not email:
             return Response({"error": "Name and email are required"}, status=400)
 
-        # Create the User
-        student = User.objects.create(
-            username=email,
-            email=email,
-            first_name=name,
-            role="student",
-            password=make_password(password),
-        )
+        user = User.objects.filter(email=email).first()
+        created_new_user = False
 
-        # Create the StudentProfile
-        StudentProfile.objects.create(user=student)
+        if user:
+            if user.role != "student":
+                return Response(
+                    {"error": "A user with this email already exists but is not a student."},
+                    status=400
+                )
+            if user.first_name != name:
+                user.first_name = name
+                user.save()
+        else:
+            user = User.objects.create(
+                username=email,
+                email=email,
+                first_name=name,
+                role="student",
+                password=make_password(password),
+            )
+            created_new_user = True
+            update_student_cache(user)
 
-        # Link to tutor if provided
+        StudentProfile.objects.get_or_create(user=user)
+
         if tutor_id:
-            TutorStudent.objects.create(
+            TutorStudent.objects.get_or_create(
                 tutor_id=tutor_id,
-                student=student
+                student=user
             )
 
-        invalidate_students_cache_for_tutor(tutor_id)
-
-        return Response({
-            "id": student.id,
-            "name": student.first_name,
-            "email": student.email,
-            "password": password,
+        response_data = {
+            "id": user.id,
+            "name": user.first_name,
+            "email": user.email,
             "linked_to_tutor": tutor_id,
-        })
+        }
+
+        if created_new_user:
+            response_data["password"] = password
+
+        return Response(response_data)
 
 class NoteViewSet(viewsets.ModelViewSet):
     queryset = Note.objects.all().order_by("-created_at")

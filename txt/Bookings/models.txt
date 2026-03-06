@@ -196,15 +196,13 @@ class User(AbstractUser):
         return result
 
     def booking_slots_adhoc(self, weekly_slots, dates):
-        # Get all adhoc bookings for the date range
         booking_map = self.booking_list_adhoc(dates)
         result = {}
-
         for day in dates:
             day_str = day.isoformat()
-            weekday = day.weekday()
+            weekday = day.weekday()  # 0 = Monday
 
-            # Weekly base slots for this weekday
+            # Weekly slots for this weekday
             base_slots = weekly_slots.get(weekday, [])
 
             # Convert weekly slot times into datetime objects for this specific date
@@ -212,21 +210,16 @@ class User(AbstractUser):
             for time_str in base_slots:
                 hour, minute = map(int, time_str.split(":"))
                 slot_dts.append(
-                    datetime.combine(day, time(hour, minute))
+                    datetime.combine(day, datetime.min.time()).replace(
+                        hour=hour, minute=minute
+                    )
                 )
 
-            # Build a set of blocked increments from adhoc bookings
+            # Build blocked increments from ad-hoc bookings
             blocked = set()
-
             for b in booking_map.get(day_str, []):
-                # b["start_time"] and b["end_time"] are HH:MM strings
-                start_h, start_m = map(int, b["start_time"].split(":"))
-                end_h, end_m = map(int, b["end_time"].split(":"))
-
-                cur = datetime.combine(day, time(start_h, start_m))
-                end = datetime.combine(day, time(end_h, end_m))
-
-                # Mark every 15‑minute increment as blocked
+                cur = datetime.fromisoformat(b["start_time"])
+                end = datetime.fromisoformat(b["end_end"])
                 while cur < end:
                     blocked.add(cur.time().strftime("%H:%M"))
                     cur += timedelta(minutes=15)

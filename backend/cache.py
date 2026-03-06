@@ -52,7 +52,10 @@ def update_student_cache(student):
     updated_summary = build_student_summary(student)
 
     # For each tutor, update their cache entry
-    tutor_id = student.get_tutor().id
+    tutor = student.get_tutor()
+    tutor_id = "None"
+    if tutor:
+        tutor_id = student.get_tutor().id
     students = STUDENTS_CACHE[tutor_id]
 
     # Try to find existing entry

@@ -1,0 +1,139 @@
+            <h4>Create Weekly Booking</h4>
+
+            <div
+              className="d-flex align-items-end gap-3 mb-4"
+              style={{ flexWrap: "wrap" }}
+            >
+
+            {/* Student selector */}
+            <div>
+              <label className="form-label" style={{ fontWeight: 600 }}>
+                Student
+              </label>
+              <select
+                className="form-select"
+                value={selectedStudentId || ""}
+                onChange={(e) => setSelectedStudentId(Number(e.target.value))}
+              >
+                <option value="">-- Choose a student --</option>
+                {students
+                  .slice()
+                  .sort((a, b) =>
+                    `${a.first_name} ${a.last_name}`.localeCompare(
+                      `${b.first_name} ${b.last_name}`
+                    )
+                  )
+                  .map((s) => (
+                    <option key={s.user_id} value={s.user_id}>
+                      {s.first_name} {s.last_name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+              {/* Day selector */}
+              <div>
+                <label className="form-label" style={{ fontWeight: 600 }}>Day</label>
+                <select
+                  className="form-select"
+                  value={weeklyDay}
+                  onChange={(e) => setWeeklyDay(Number(e.target.value))}
+                >
+                  <option value={1}>Monday</option>
+                  <option value={2}>Tuesday</option>
+                  <option value={3}>Wednesday</option>
+                  <option value={4}>Thursday</option>
+                  <option value={5}>Friday</option>
+                  <option value={6}>Saturday</option>
+                  <option value={0}>Sunday</option>
+                </select>
+              </div>
+
+              {/* Time selector */}
+              <div>
+                <label className="form-label" style={{ fontWeight: 600 }}>Time</label>
+                <input
+                  type="time"
+                  className="form-control"
+                  value={weeklyTime}
+                  onChange={(e) => setWeeklyTime(e.target.value)}
+                />
+              </div>
+
+              {/* Create button */}
+              <div>
+                <button
+                  className="btn btn-primary"
+                  onClick={createWeekly}
+                  disabled={weeklyLoading}
+                >
+                  {weeklyLoading ? "Creating…" : "Create weekly booking"}
+                </button>
+              </div>
+            </div>
+
+            <h4>Create One-off Booking</h4>
+
+            <div
+              className="d-flex align-items-end gap-3 mb-4"
+              style={{ flexWrap: "wrap" }}
+            >
+              {/* Student selector */}
+              <div>
+                <label className="form-label" style={{ fontWeight: 600 }}>
+                  Student
+                </label>
+                <select
+                  className="form-select"
+                  value={adhocStudentId || ""}
+                  onChange={(e) => setAdhocStudentId(Number(e.target.value))}
+                >
+                  <option value="">-- Choose a student --</option>
+                  {students
+                    .slice()
+                    .sort((a, b) =>
+                      `${a.first_name} ${a.last_name}`.localeCompare(
+                        `${b.first_name} ${b.last_name}`
+                      )
+                    )
+                    .map((s) => (
+                      <option key={s.user_id} value={s.user_id}>
+                        {s.first_name} {s.last_name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {/* Date selector */}
+              <div>
+                <label className="form-label">Date</label>
+                <input
+                  type="date"
+                  className="form-control"
+                  value={adhocDate}
+                  onChange={(e) => setAdhocDate(e.target.value)}
+                />
+              </div>
+
+              {/* Time selector */}
+              <div>
+                <label className="form-label">Time</label>
+                <input
+                  type="time"
+                  className="form-control"
+                  value={adhocTime}
+                  onChange={(e) => setAdhocTime(e.target.value)}
+                />
+              </div>
+
+              {/* Create button */}
+              <div>
+                <button
+                  className="btn btn-primary"
+                  onClick={createAdhoc}
+                  disabled={adhocLoading}
+                >
+                  {adhocLoading ? "Creating…" : "Create one off booking"}
+                </button>
+              </div>
+            </div>
