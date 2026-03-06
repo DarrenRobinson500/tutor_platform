@@ -645,7 +645,7 @@ class TutorViewSet(viewsets.ModelViewSet):
         # Build two weeks using cached data
         week1 = get_combined_calendar(tutor, last_monday)
         week2 = get_combined_calendar(tutor, next_monday)
-        print("Week 1:", week1)
+        # print("Week 1:", week1)
 
         return Response({
             "students": students,

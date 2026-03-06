@@ -36,9 +36,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
 # ]
 
 ALLOWED_HOSTS = ["*",]
-CSRF_TRUSTED_ORIGINS = [
-    "https://web-production-f1310.up.railway.app",
-]
+
 
 CUSTOM_DOMAIN = os.getenv("CUSTOM_DOMAIN")
 if CUSTOM_DOMAIN:
