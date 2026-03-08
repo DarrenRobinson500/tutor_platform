@@ -1,4 +1,5 @@
 from .models import *
+from .clicksend import *
 SMS_PAUSE = timedelta(seconds=10)
 
 def format_weekday(day_str):
@@ -123,15 +124,22 @@ def process_sms_jobs():
             status="queued"
         )
 
-        provider_id = 1
-        # provider_id = clicksend_send_sms(msg.phone_number, job.body)
-        print("SMS Sent:", job.body)
+        try:
+            if settings.SMS_Mock:
+                print("SMS Sent:", job.body)
+            else:
+                msg.provider_message_id = clicksend_send_sms(msg.phone_number, job.body)
+            msg.status = "sent"
+            msg.sent_at = now
+            msg.save(update_fields=["provider_message_id", "status", "sent_at"])
 
-        msg.provider_message_id = provider_id
-        msg.status = "sent"
-        msg.sent_at = now
-        msg.save(update_fields=["provider_message_id", "status", "sent_at"])
+            job.cancelled = True
+            job.save(update_fields=["cancelled"])
 
-        # Remove or mark job
-        job.cancelled = True
-        job.save(update_fields=["cancelled"])
+        except Exception as e:
+            # Mark as failed but keep the job so it can be retried later
+            msg.status = "failed"
+            msg.save(update_fields=["status"])
+            print("SMS sending failed:", e)
+
+
