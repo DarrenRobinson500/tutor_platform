@@ -38,20 +38,12 @@ class StudentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = StudentProfile
-        fields = ["id", "user", "year_level", "area_of_study", "next_booking",]
+        fields = ["id", "user", "year_level", "area_of_study", "next_booking", "mobile", "address"]
         read_only_fields = ["id", "user"]
         depth = 1
 
     def get_next_booking(self, obj):
-        booking = obj.next_booking()
-        if not booking:
-            return None
-
-        return {
-            "start": booking.start_datetime.isoformat(),
-            "end": booking.end_datetime.isoformat(),
-        }
-
+        return obj.next_booking()
 
 class TutorSerializer(serializers.ModelSerializer):
     class Meta:

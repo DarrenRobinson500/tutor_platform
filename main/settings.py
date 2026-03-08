@@ -11,7 +11,6 @@ from datetime import timedelta
 SECURE_SSL_REDIRECT = False
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=24),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
@@ -271,3 +270,18 @@ LOGGING = {
 # Default primary key field type
 # ---------------------------------------------------------
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Celery configuration
+
+CELERY_BROKER_URL = os.environ.get("REDIS_URL")
+CELERY_RESULT_BACKEND = os.environ.get("REDIS_URL")
+
+CELERY_BEAT_SCHEDULE = {
+    "process-sms-jobs-every-30s": {
+        "task": "backend.tasks.run_sms_jobs",
+        "schedule": 30.0,
+    },
+}
+
+CELERY_TIMEZONE = "Australia/Sydney"
+CELERY_ENABLE_UTC = False

@@ -27,7 +27,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from rest_framework_simplejwt.tokens import RefreshToken
 from .pre_view import *
-
+from .message import *
+from .booking import *
 
 @method_decorator(csrf_exempt, name='dispatch')
 class AuthViewSet(viewsets.ViewSet):
@@ -614,11 +615,8 @@ class TutorViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"])
     def home(self, request, pk=None):
         tutor = self.get_object()
-        return Response({
-            "id": tutor.id,
-            "name": tutor.get_full_name() or tutor.username,
-            "email": tutor.email,
-        })
+        profile = tutor.get_tutor_profile()
+        return Response(profile.to_dict())
 
     @action(detail=True, methods=["get"])
     def students(self, request, pk=None):
@@ -653,7 +651,85 @@ class TutorViewSet(viewsets.ModelViewSet):
             "week2": week2,
         })
 
+    @action(detail=True, methods=["post"])
+    def edit(self, request, pk=None):
+        print("Tutor edit")
+        user = self.get_object()
+        profile = user.get_tutor_profile()
 
+        fields = request.data.get("fields", {})
+        print("Tutor edit (fields)", fields)
+
+        # Update User fields
+        for key, value in fields.items():
+            if hasattr(user, key):
+                setattr(user, key, value)
+
+        user.save()
+
+        fields_to_update = ["mobile", "address", "default_session_minutes", "buffer_minutes"]
+        changed = False
+        for key, value in fields.items():
+            if key in fields_to_update:
+                print("Tutor edit:", key)
+                setattr(profile, key, value)
+                changed = True
+
+        if changed:
+            profile.save()
+
+        return Response(profile.to_dict(), status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["get"])
+    def sms(self, request, pk=None):
+        tutor = self.get_object()
+        conversations = SMSConversation.objects.filter(tutor=tutor).select_related("student").order_by("-last_message_at")
+
+        data = []
+        for convo in conversations:
+            last_msg = convo.messages.order_by("-created_at").first()
+            student = convo.student
+
+            data.append({
+                "conversation_id": convo.id,
+                "student_id": student.id,
+                "student_name": student.get_full_name() or student.username,
+                "last_message": last_msg.body if last_msg else "",
+                "last_message_at": last_msg.created_at if last_msg else convo.created_at,
+            })
+
+        return Response(data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["get"], url_path="sms/(?P<conversation_id>[^/.]+)")
+    def sms_conversation(self, request, pk=None, conversation_id=None):
+        tutor = self.get_object()
+
+        try:
+            convo = SMSConversation.objects.get(id=conversation_id, tutor=tutor)
+        except SMSConversation.DoesNotExist:
+            return Response({"error": "Conversation not found"}, status=404)
+
+        messages = convo.messages.order_by("created_at")
+
+        return Response({
+            "conversation_id": convo.id,
+            "tutor_id": tutor.id,
+            "student_id": convo.student.id,
+            "student_name": convo.student.get_full_name(),
+            "messages": [
+                {
+                    "id": m.id,
+                    "direction": m.direction,
+                    "body": m.body,
+                    "created_at": m.created_at,
+                    "sent_at": m.sent_at,
+                    "delivered_at": m.delivered_at,
+                    "status": m.status,
+                    "phone_number": m.phone_number,
+                }
+                for m in messages
+            ]
+        })
 
     @action(detail=True, methods=["get"])
     def templates(self, request, pk=None):
@@ -694,51 +770,51 @@ class TutorViewSet(viewsets.ModelViewSet):
     #     data = get_availability_weekly(tutor)
     #     return Response(data)
 
-    @action(detail=True, methods=["POST"])
-    def edit_weekly_booking(self, request, pk=None):
-        tutor = self.get_object()
-
-        weekday = request.data.get("weekday")
-        old_time = request.data.get("old_time")
-        new_time = request.data.get("new_time")
-        duration = int(request.data.get("duration_minutes", 60))
-        student_id = request.data.get("student_id")
-
-        if weekday is None or not old_time or not new_time:
-            return Response({"ok": False, "error": "Missing required fields."})
-
-        # Parse times
-        try:
-            old_start = datetime.strptime(old_time, "%H:%M").time()
-            new_start = datetime.strptime(new_time, "%H:%M").time()
-        except ValueError:
-            return Response({"ok": False, "error": "Invalid time format."})
-
-        # Compute new end time
-        new_end_dt = datetime.combine(date.today(), new_start) + timedelta(minutes=duration)
-        new_end = new_end_dt.time()
-
-        # Find the existing booking
-        try:
-            booking = BookingWeekly.objects.get(
-                tutor=tutor,
-                weekday=weekday,
-                start_time=old_start,
-            )
-        except BookingWeekly.DoesNotExist:
-            print("Edit - Couldn't find weekly booking")
-            return Response({"ok": False, "error": "Booking not found."})
-
-        # Update fields
-        booking.start_time = new_start
-        booking.end_time = new_end
-        print("Edit:", booking, booking.start_time, booking.end_time)
-
-        booking.save()
-        print("Booking edits were saved")
-        invalidate_availability_adhoc(tutor.id)
-
-        return Response({"ok": True})
+    # @action(detail=True, methods=["POST"])
+    # def edit_weekly_booking(self, request, pk=None):
+    #     tutor = self.get_object()
+    #
+    #     weekday = request.data.get("weekday")
+    #     old_time = request.data.get("old_time")
+    #     new_time = request.data.get("new_time")
+    #     duration = int(request.data.get("duration_minutes", 60))
+    #     student_id = request.data.get("student_id")
+    #
+    #     if weekday is None or not old_time or not new_time:
+    #         return Response({"ok": False, "error": "Missing required fields."})
+    #
+    #     # Parse times
+    #     try:
+    #         old_start = datetime.strptime(old_time, "%H:%M").time()
+    #         new_start = datetime.strptime(new_time, "%H:%M").time()
+    #     except ValueError:
+    #         return Response({"ok": False, "error": "Invalid time format."})
+    #
+    #     # Compute new end time
+    #     new_end_dt = datetime.combine(date.today(), new_start) + timedelta(minutes=duration)
+    #     new_end = new_end_dt.time()
+    #
+    #     # Find the existing booking
+    #     try:
+    #         booking = BookingWeekly.objects.get(
+    #             tutor=tutor,
+    #             weekday=weekday,
+    #             start_time=old_start,
+    #         )
+    #     except BookingWeekly.DoesNotExist:
+    #         print("Edit - Couldn't find weekly booking")
+    #         return Response({"ok": False, "error": "Booking not found."})
+    #
+    #     # Update fields
+    #     booking.start_time = new_start
+    #     booking.end_time = new_end
+    #     print("Edit:", booking, booking.start_time, booking.end_time)
+    #
+    #     booking.save()
+    #     print("Booking edits were saved")
+    #     invalidate_availability_adhoc(tutor.id)
+    #
+    #     return Response({"ok": True})
 
     @action(detail=True, methods=["post"])
     def add_availability(self, request, pk=None):
@@ -792,141 +868,55 @@ class TutorViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-    # --------------- UNIFIED FUNCTIONS ----------------------
-
-    @action(detail=True, methods=["post"], url_path="create_booking")
-    def create_booking(self, request, pk=None):
-        tutor = self.get_object()
-        booking_type = request.data.get("booking_type")
-        student_id = request.data.get("student_id")
-
-        if not student_id:
-            return Response({"ok": False, "error": "student_id required"}, status=400)
-
-        student = User.objects.filter(id=student_id).first()
-        if not student:
-            return Response({"ok": False, "error": "Student not found"}, status=404)
-
-        # WEEKLY BOOKING
-        if booking_type == "weekly":
-            weekday = request.data.get("weekday")
-            time_str = request.data.get("time")
-
-            if weekday is None or not time_str:
-                return Response({"ok": False, "error": "weekday and time required"}, status=400)
-
-            start_time, end_time = get_times(time_str, tutor.default_session_minutes)
-
-            try:
-                weekly = BookingWeekly.objects.create(
-                    tutor=tutor,
-                    student=student,
-                    weekday=weekday,
-                    start_time=start_time,
-                    end_time=end_time,
-                    confirmed=True,
-                )
-            except Exception as e:
-                return Response({"ok": False, "error": str(e)}, status=400)
-
-            invalidate_weekly_bookings(tutor.id)
-            return Response({"ok": True, "weekly_id": weekly.id})
-
-        # ADHOC BOOKING
-        if booking_type == "adhoc":
-            dt_str = request.data.get("datetime")
-            start_dt, end_dt = get_datetimes(dt_str, tutor.default_session_minutes)
-
-            try:
-                booking = BookingAdhoc.objects.create(
-                    tutor=tutor,
-                    student=student,
-                    start_datetime=start_dt,
-                    end_datetime=end_dt,
-                    confirmed=True,
-                )
-            except Exception as e:
-                return Response({"ok": False, "error": str(e)}, status=400)
-
-            # Clear cached calendar
-            invalidate_adhoc_bookings(tutor.id)
-
-            return Response({"ok": True, "booking_id": booking.id})
-        return Response({"ok": False, "error": "Unknown booking type"}, status=400)
+    # --------------- UNIFIED FUNCTION ----------------------
 
     @action(detail=True, methods=["POST"], url_path="booking_action")
     def booking_action(self, request, pk=None):
         tutor = self.get_object()
+        data = request.data
 
+        command = data.get("command") or data.get("action")
+        booking_type = data.get("booking_type") or data.get("type")
         booking_id = request.data.get("id")
-        booking_type = request.data.get("type")
-        action = request.data.get("action")
-        print("Booking action:", booking_type, action)
 
-        if not booking_id or not booking_type or not action:
-            return Response({"ok": False, "error": "Missing id, type, or action."}, status=400)
+        if not command or not booking_type:
+            return Response({"ok": False, "error": "Missing command or booking_type"}, status=400)
+        model = BookingAdhoc if booking_type == "adhoc" else BookingWeekly
 
-        # Select model
-        booking_model = BookingWeekly
-        if booking_type == "adhoc":
-            booking_model = BookingAdhoc
+        # CREATE
+        if command == "create":
+            if data.get("pause_weekly"):
+                print("Pausing weekly")
+                weekly = BookingWeekly.objects.filter(tutor=tutor, student=student).first()
+                if weekly:
+                    weekly.skip()
+                    update_booking_caches(weekly, "skip")
 
-        # Fetch booking
+            return create_booking(tutor, data, booking_type)
+
+        # MUTATE EXISTING BOOKING
         try:
-            booking = booking_model.objects.get(id=booking_id, tutor=tutor)
-        except booking_model.DoesNotExist:
-            return Response({"ok": False, "error": "Booking not found."}, status=404)
+            booking = model.objects.get(id=booking_id)
+        except model.DoesNotExist:
+            print("Couldn't find booking. model, Booking id:", model, booking_id)
+            return Response({"ok": False, "error": "Booking not found"}, status=404)
 
-        # Perform action
-        if action == "confirm":
-            booking.confirmed = not booking.confirmed
-            booking.save()
-            update_booking_caches(booking, action)
-            return Response({"ok": True, "confirmed": booking.confirmed})
+        if command == "confirm":
+            return confirm_booking(booking)
 
-        if action == "edit" and booking_type != "adhoc":
-            weekday = request.data.get("weekday")
-            start_time_str = request.data.get("start_time")
-            duration = int(request.data.get("duration", 60))
-            start_time, end_time = get_times(start_time_str, duration)
-            print("Booking Action (Edit):", duration, start_time, end_time)
+        if command == "edit":
+            return edit_booking(booking, data, booking_type)
 
-            booking.weekday = weekday
-            booking.start_time = start_time
-            booking.end_time = end_time
-            booking.save()
-            update_booking_caches(booking, action)
+        if command == "skip":
+            return skip_booking(booking)
 
-            return Response({"ok": True, "edit": booking.id})
+        if command == "remove_skip":
+            return remove_skip_booking(booking)
 
-        if action == "edit" and booking_type == "adhoc":
-            start_datetime_str = request.data.get("start_time")
-            duration = int(request.data.get("duration", 60))
-            start_time, end_time = get_datetimes(start_datetime_str, duration)
+        if command == "delete":
+            return delete_booking(booking)
 
-            booking.start_datetime = start_time
-            booking.end_datetime = end_time
-            booking.save()
-            update_booking_caches(booking, action)
-
-            return Response({"ok": True, "edit": booking.id})
-
-        if action == "skip":
-            booking.skip()
-            update_booking_caches(booking, action)
-            return Response({"ok": True, "skip": booking.id})
-
-        if action == "remove_skip":
-            booking.remove_skip()
-            update_booking_caches(booking, action)
-            return Response({"ok": True, "remove_skip": booking.id})
-
-        if action == "delete":
-            update_booking_caches(booking, action)
-            booking.delete()
-            return Response({"ok": True, "deleted": True})
-
-        return Response({"ok": False, "error": "Unknown action."}, status=400)
+        return Response({"ok": False, "error": "Unknown command"}, status=400)
 
 # -------------- STUDENT ---------------- #
 
@@ -945,53 +935,30 @@ class StudentViewSet(viewsets.ModelViewSet):
         student_profile = self.get_object()
         student = student_profile.user
         fields = request.data.get("fields", {})
+        print("Student edit (fields)", fields)
         for key, value in fields.items():
             if hasattr(student, key):
                 setattr(student, key, value)
 
         student.save()
 
-        profile_fields = ["year_level", "area_of_study"]
+        profile_fields = ["year_level", "area_of_study", "mobile", "address"]
         changed = False
 
         for key, value in fields.items():
             if key in profile_fields:
+                print("Student edit:", key)
                 setattr(student_profile, key, value)
                 changed = True
         if changed:
             student_profile.save()
         update_student_cache(student)
-        return Response(build_student_summary(student), status=status.HTTP_200_OK)
-
+        return Response(student_profile.to_dict(), status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["get"])
     def home(self, request, pk=None):
         student_profile = self.get_object()
-        user = student_profile.user
-
-        tutor_user = user.get_tutor()
-        tutor_name = tutor_user.get_full_name() or tutor_user.username if tutor_user else None
-        tutor_id = tutor_user.id if tutor_user else None
-        state = user.booking_mode()
-        tutor_mobile = tutor_user.get_tutor_profile().mobile
-        tutor_mobile = format_mobile(tutor_mobile)
-
-        data = {
-            "id": user.id,
-            "name": user.get_full_name() or user.username,
-            "email": user.email,
-            "tutor_id": tutor_id,
-            "tutor_name": tutor_name,
-            "tutor_mobile": tutor_mobile,
-            "year_level": student_profile.year_level,
-            "area_of_study": student_profile.area_of_study,
-            "booking_mode": state["mode"],
-            "next_booking": state["next_booking"],
-            "next_weekly_booking": state["weekly"],
-            "next_ad_hoc_booking": state["adhoc"],
-        }
-
-        return Response(data)
+        return Response(student_profile.to_dict())
 
     @action(detail=True, methods=["get"])
     def booking(self, request, pk=None):
@@ -1227,4 +1194,31 @@ class BookingAdhocViewSet(viewsets.ModelViewSet):
 
         return Response({
             "ok": True,
+        })
+
+class SMSConversationViewSet(viewsets.ViewSet):
+
+    def retrieve(self, request, pk=None):
+        convo = SMSConversation.objects.get(pk=pk)
+        messages = convo.messages.order_by("created_at")
+
+        data = []
+        for msg in messages:
+            data.append({
+                "id": msg.id,
+                "direction": msg.direction,
+                "body": msg.body,
+                "created_at": msg.created_at,
+                "sent_at": msg.sent_at,
+                "delivered_at": msg.delivered_at,
+                "status": msg.status,
+                "phone_number": msg.phone_number,
+            })
+
+        return Response({
+            "conversation_id": convo.id,
+            "tutor_id": convo.tutor.id,
+            "student_id": convo.student.id,
+            "student_name": convo.student.get_full_name(),
+            "messages": data,
         })

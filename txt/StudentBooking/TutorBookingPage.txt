@@ -88,7 +88,7 @@ export function TutorBookingPage() {
   const handleBookingAction = async (
     bookingId: number,
     bookingType: string,
-    action: "confirm" | "delete" | "skip" | "remove_skip" | "edit",
+    action: "create" | "confirm" | "delete" | "skip" | "remove_skip" | "edit",
     extra: any = {}
   ) => {
     try {
@@ -110,7 +110,9 @@ export function TutorBookingPage() {
         return;
       }
 
-      if (action === "confirm") {
+      if (action === "create") {
+        setMessage("Booking created.");
+      } else if (action === "confirm") {
         setMessage(data.confirmed ? "Booking confirmed." : "Booking unconfirmed.");
       } else if (action === "delete") {
         setMessage("Booking deleted.");
@@ -122,60 +124,33 @@ export function TutorBookingPage() {
         setMessage("Booking updated.");
       }
 
+
       await reload();
     } catch {
       setMessage("Error performing booking action.");
     }
   };
 
-  const handleCreateBooking = async (payload: any) => {
-    const type = payload.booking_type;
+const createWeekly = () => {
+  if (!selectedStudentId) {
+    setMessage("Please select a student for the weekly booking.");
+    return;
+  }
 
-    // Weekly booking → must use selectedStudentId
-    if (type === "weekly") {
-      if (!selectedStudentId) {
-        setMessage("Please select a student for the weekly booking.");
-        return;
-      }
-      payload.student_id = selectedStudentId;
-    }
+  const pythonDay = (weeklyDay + 6) % 7;
 
-    // Ad‑hoc booking → must use adhocStudentId
-    if (type === "adhoc") {
-      if (!adhocStudentId) {
-        setMessage("Please select a student for the ad‑hoc booking.");
-        return;
-      }
-      payload.student_id = adhocStudentId;
-    }
-
-    setWeeklyLoading(true);
-    try {
-      const res = await apiFetch(`/api/tutors/${id}/create_booking/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-      setMessage(data.ok ? "Booking created." : data.error);
-      await reload();
-    } catch {
-      setMessage("Error creating booking.");
-    } finally {
-      setWeeklyLoading(false);
-    }
-  };
-
-  const createWeekly = () => {
-    const pythonDay = (weeklyDay + 6) % 7;
-
-    handleCreateBooking({
+  handleBookingAction(
+    0,
+    "weekly",
+    "create",
+    {
       booking_type: "weekly",
+      student_id: selectedStudentId,
       weekday: pythonDay,
       time: weeklyTime,
-    });
-  };
+    }
+  );
+};
 
 const createAdhoc = () => {
   if (!adhocStudentId) {
@@ -189,15 +164,17 @@ const createAdhoc = () => {
 
   const datetime = `${adhocDate}T${adhocTime}:00`;
 
-  handleCreateBooking({
-    booking_type: "adhoc",
-    datetime,
-    student_id: adhocStudentId,
-  });
+  handleBookingAction(
+    0,
+    "adhoc",
+    "create",
+    {
+      booking_type: "adhoc",
+      student_id: adhocStudentId,
+      datetime,
+    }
+  );
 };
-
-
-
 
   // -----------------------------
   // Render

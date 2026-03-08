@@ -9,6 +9,7 @@ from django.utils.timezone import make_aware, now as tz_now
 from django.contrib.auth.models import UserManager
 
 from django.db.models import Count
+from .utilities import *
 
 
 from django.utils import timezone
@@ -82,6 +83,29 @@ class User(AbstractUser):
             return profile
 
         return None
+
+    def next_booking(self):
+        if self.role != "student":
+            return None
+
+        weekly = self.next_weekly_booking()
+        adhoc = self.next_ad_hoc_booking()
+
+        # If neither exists
+        if not weekly and not adhoc:
+            return None
+
+        # If only one exists
+        if weekly and not adhoc:
+            return weekly
+        if adhoc and not weekly:
+            return adhoc
+
+        # Both exist → compare start times
+        weekly_start = datetime.fromisoformat(weekly["start"])
+        adhoc_start = datetime.fromisoformat(adhoc["start"])
+
+        return weekly if weekly_start <= adhoc_start else adhoc
 
     def next_ad_hoc_booking(self):
         # print("Next adhoc start")
@@ -515,6 +539,8 @@ class BookingWeekly(models.Model):
             "duration_minutes": duration_minutes,
             "booking_type": "weekly",
             "student_can_edit": self.student_can_edit(),
+            "tutor_name": self.tutor.get_full_name() if self.tutor else None,
+            "tutor_id": self.tutor.id if self.tutor else None,
         }
 
 
@@ -556,6 +582,8 @@ class BookingAdhoc(models.Model):
             "duration_minutes": duration_minutes,
             "booking_type": "adhoc",
             "student_can_edit": self.student_can_edit(),
+            "tutor_name": self.tutor.get_full_name() if self.tutor else None,
+            "tutor_id": self.tutor.id if self.tutor else None,
         }
 
 class ParentChild(models.Model):
@@ -578,8 +606,47 @@ class StudentProfile(models.Model):
     user = models.OneToOneField(django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="student_profile")
     year_level = models.CharField(max_length=50, blank=True, null=True)
     area_of_study = models.TextField(blank=True, null=True)
+    mobile = models.CharField(max_length = 20, null=True, blank=True)
+    address = models.CharField(max_length=255, blank=True, null=True)
+
     def __str__(self): return f"Profile {self.user} {self.id}"
 
+    def next_booking(self):
+        return self.user.next_booking()
+
+    def to_dict(self):
+        u = self.user
+        tutor_user = u.get_tutor()
+        tutor_profile = tutor_user.get_tutor_profile() if tutor_user else None
+
+        return {
+            # User + profile identifiers
+            "user_id": u.id,
+            "profile_id": self.id,
+
+            # User identity
+            "first_name": u.first_name,
+            "last_name": u.last_name,
+            "name": u.get_full_name() or u.username,
+            "email": u.email,
+            "active": u.active,
+
+            # Student profile fields
+            "year_level": self.year_level,
+            "area_of_study": self.area_of_study,
+            "mobile": self.mobile,
+            "address": self.address,
+
+            # Tutor details (flattened for convenience)
+            "tutor_id": tutor_user.id if tutor_user else None,
+            "tutor_name": tutor_user.get_full_name() if tutor_user else None,
+            "tutor_mobile": tutor_profile.mobile if tutor_profile else None,
+            "tutor_address": tutor_profile.address if tutor_profile else None,
+
+            # Booking info (already unified via booking.to_dict())
+            "next_ad_hoc_booking": u.next_ad_hoc_booking(),
+            "next_weekly_booking": u.next_weekly_booking(),
+        }
 
 class TutorProfile(models.Model):
     # Branding
@@ -589,14 +656,46 @@ class TutorProfile(models.Model):
     welcome_message = models.TextField(null=True, blank=True)
     token = models.CharField(max_length=64, unique=True, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    mobile = models.CharField(max_length = 20, null=True, blank=True)
+    mobile = models.CharField(max_length=20, blank=True, null=True)
+    address = models.CharField(max_length=255, blank=True, null=True)
 
     # Bookings
     default_session_minutes = models.IntegerField(default=60)
     buffer_minutes = models.IntegerField(default=15)
 
-
     def __str__(self): return f"{self.tutor}"
+
+    def to_dict(self):
+        u = self.tutor
+
+        # If you want to show next bookings on TutorHomePage:
+        # next_adhoc = u.next_ad_hoc_booking()
+        # next_weekly = u.next_weekly_booking()
+
+        return {
+            # User identity
+            "user_id": u.id,
+            "profile_id": self.id,
+            "first_name": u.first_name,
+            "last_name": u.last_name,
+            "name": u.get_full_name() or u.username,
+            "email": u.email,
+            "active": u.active,
+
+            # Tutor profile fields
+            "mobile": format_mobile(self.mobile),
+            "address": self.address,
+            "default_session_minutes": self.default_session_minutes,
+            "buffer_minutes": self.buffer_minutes,
+
+            # Booking info (mirrors student structure)
+            # "next_ad_hoc_booking": next_adhoc,
+            # "next_weekly_booking": next_weekly,
+
+            # Optional: combined next booking (same as student home)
+            # "next_booking": next_adhoc or next_weekly,
+        }
+
 
     def appointment_status(self, date_obj, time_obj, student=None):
         dt = make_aware(datetime.combine(date_obj, time_obj))
@@ -850,3 +949,43 @@ class Note(models.Model):
         if self.template:
             return f"Note by {self.author} on {self.template.name}"
         return f"Note by {self.author} (general)"
+
+# Messaging
+
+class SMSConversation(models.Model):
+    tutor = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sms_conversations_as_tutor")
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sms_conversations_as_student")
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_message_at = models.DateTimeField(auto_now=True)
+
+class SMSMessage(models.Model):
+    direction = models.CharField(max_length=10, choices=[("outbound", "Outbound"), ("inbound", "Inbound")])
+    conversation = models.ForeignKey(SMSConversation, on_delete=models.CASCADE, related_name="messages")
+
+    body = models.TextField()
+    phone_number = models.CharField(max_length=20, null=True, blank=True)
+    provider_message_id = models.CharField(max_length=100, null=True, blank=True)
+
+    status = models.CharField(max_length=20, default="queued")
+    created_at = models.DateTimeField(auto_now_add=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+
+class SMSSendJob(models.Model):
+    tutor = models.ForeignKey(User, on_delete=models.CASCADE)
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sms_sendjob_student")
+
+    body = models.TextField()
+    scheduled_for = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    cancelled = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.tutor} {self.student} {self.body}"
+
+def get_or_create_conversation(tutor, student):
+    convo, created = SMSConversation.objects.get_or_create(
+        tutor=tutor,
+        student=student
+    )
+    return convo

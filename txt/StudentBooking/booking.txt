@@ -1,0 +1,104 @@
+from rest_framework.response import Response
+
+from .cache import *
+from .utilities import *
+from .message import *
+
+def create_booking(tutor, data, booking_type):
+    student_id = data.get("student_id")
+    student = User.objects.filter(id=student_id).first()
+    if not student:
+        return Response({"ok": False, "error": "Student not found"}, status=404)
+
+    try:
+        if booking_type == "weekly":
+            weekday = data.get("weekday")
+            time_str = data.get("time")
+            if weekday is None or not time_str:
+                return Response({"ok": False, "error": "weekday and time required"}, status=400)
+
+            start_time, end_time = get_times(time_str, tutor.default_session_minutes)
+
+            booking = BookingWeekly.objects.create(
+                tutor=tutor,
+                student=student,
+                weekday=weekday,
+                start_time=start_time,
+                end_time=end_time,
+                confirmed=True,
+            )
+            invalidate_weekly_bookings(tutor.id)
+
+        else:  # adhoc
+            dt_str = data.get("datetime")
+            start_dt, end_dt = get_datetimes(dt_str, tutor.default_session_minutes)
+
+            booking = BookingAdhoc.objects.create(
+                tutor=tutor,
+                student=student,
+                start_datetime=start_dt,
+                end_datetime=end_dt,
+                confirmed=True,
+            )
+            invalidate_adhoc_bookings(tutor.id)
+
+        sms_enqueue(booking, "tutor_created")
+        return Response({"ok": True, "id": booking.id})
+
+    except Exception as e:
+        return Response({"ok": False, "error": str(e)}, status=400)
+
+def confirm_booking(booking):
+    booking.confirmed = not booking.confirmed
+    booking.save()
+
+    update_booking_caches(booking, "confirm")
+    sms_enqueue(booking, "tutor_updated")
+
+    return Response({"ok": True, "confirmed": booking.confirmed})
+
+def edit_booking(booking, data, booking_type):
+    duration = int(data.get("duration", 60))
+
+    if booking_type == "weekly":
+        weekday = data.get("weekday")
+        start_time_str = data.get("start_time")
+        start_time, end_time = get_times(start_time_str, duration)
+
+        booking.weekday = weekday
+        booking.start_time = start_time
+        booking.end_time = end_time
+
+    else:  # adhoc
+        start_datetime_str = data.get("start_time")
+        start_dt, end_dt = get_datetimes(start_datetime_str, duration)
+
+        booking.start_datetime = start_dt
+        booking.end_datetime = end_dt
+
+    booking.save()
+    update_booking_caches(booking, "edit")
+    sms_enqueue(booking, "tutor_updated")
+
+    return Response({"ok": True, "edit": booking.id})
+
+def skip_booking(booking):
+    booking.skip()
+    update_booking_caches(booking, "skip")
+    sms_enqueue(booking, "tutor_updated")
+
+    return Response({"ok": True, "skip": booking.id})
+
+def remove_skip_booking(booking):
+    booking.remove_skip()
+    update_booking_caches(booking, "remove_skip")
+    sms_enqueue(booking, "tutor_updated")
+
+    return Response({"ok": True, "remove_skip": booking.id})
+
+def delete_booking(booking):
+    sms_enqueue(booking, "tutor_cancelled")
+    update_booking_caches(booking, "delete")
+    booking.delete()
+
+    return Response({"ok": True, "deleted": True})

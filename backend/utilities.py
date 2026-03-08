@@ -1,6 +1,7 @@
 import json
-from .models import *
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time, date
+from django.utils import timezone
+local_tz = timezone.get_default_timezone()
 
 def format_for_editor(obj: dict) -> str:
     lines = []
@@ -14,13 +15,6 @@ def format_for_editor(obj: dict) -> str:
         # Format with newline + tab indentation
         lines.append(f"{key}:\n    {value_str}")
     return "\n\n".join(lines)
-
-
-def get_tutor_settings(user):
-    try:
-        return TutorProfile.objects.get(user=user)
-    except TutorProfile.DoesNotExist:
-        return None
 
 
 def generate_week(tutor_user, tutor_profile, week_start):

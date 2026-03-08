@@ -12,7 +12,7 @@ def get_combined_calendar(tutor, start_date_iso):
     result = {}
 
     for i in range(7):
-        day = start_date + timedelta(days=i)
+        day = (start_date + timedelta(days=i))
         day_str = day.isoformat()
         weekday = day.weekday()
 
@@ -38,8 +38,12 @@ def get_combined_calendar(tutor, start_date_iso):
             if wb_start_date:
                 # wb_date_str = wb_start_date.split("T")[0]
                 # wb_date = date.fromisoformat(wb_date_str)
+                if isinstance(wb_start_date, datetime):
+                    wb_start_date = wb_start_date.date()
 
-                if day < wb_start_date:
+                print("Get combined calendar. Types:", type(day), type(wb_start_date))
+
+                if day < wb_start_date :
                     is_paused = True
 
             b = {

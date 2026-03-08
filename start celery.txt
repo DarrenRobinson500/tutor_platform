@@ -1,0 +1,15 @@
+# After reboot:
+
+# 1. Check Redis/Memurai
+memurai-cli ping   # should return PONG
+
+# 2. Terminal 1 — Django
+python manage.py runserver
+
+# 3. Terminal 2 — Celery worker
+set DJANGO_SETTINGS_MODULE=main.settings
+celery -A main worker --loglevel=info --pool=solo
+
+# 4. Terminal 3 — Celery beat
+set DJANGO_SETTINGS_MODULE=main.settings
+celery -A main beat --loglevel=info

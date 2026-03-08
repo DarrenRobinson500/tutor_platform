@@ -47,19 +47,15 @@ def update_student_cache(student):
 
     # Find all tutors linked to this student
     links = TutorStudent.objects.filter(student=student).select_related("tutor")
-    profile = student.get_student_profile()
 
     # Build fresh summary for this student
-    updated_summary = profile.to_dict()
+    updated_summary = build_student_summary(student)
 
     # For each tutor, update their cache entry
     tutor = student.get_tutor()
     tutor_id = "None"
     if tutor:
         tutor_id = student.get_tutor().id
-    if tutor_id not in STUDENTS_CACHE:
-        STUDENTS_CACHE[tutor_id] = []
-
     students = STUDENTS_CACHE[tutor_id]
 
     # Try to find existing entry
