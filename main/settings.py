@@ -286,4 +286,9 @@ CELERY_BEAT_SCHEDULE = {
 CELERY_TIMEZONE = "Australia/Sydney"
 CELERY_ENABLE_UTC = False
 
-SMS_MOCK = True
+# SMS configuration
+
+SMS_SEND = os.environ.get("SMS_SEND")
+CLICKSEND_USERNAME = os.environ.get("CLICKSEND_USERNAME")
+CLICKSEND_API_KEY = os.environ.get("CLICKSEND_API_KEY")
+CLICKSEND_FROM_NUMBER = os.environ.get("CLICKSEND_FROM_NUMBER")
