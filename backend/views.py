@@ -938,6 +938,7 @@ class StudentViewSet(viewsets.ModelViewSet):
         print("Student edit (fields)", fields)
         for key, value in fields.items():
             if hasattr(student, key):
+                print("Saved (to user): ", key, value)
                 setattr(student, key, value)
 
         student.save()

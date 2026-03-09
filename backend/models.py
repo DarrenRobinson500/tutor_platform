@@ -606,7 +606,7 @@ class StudentProfile(models.Model):
     user = models.OneToOneField(django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="student_profile")
     year_level = models.CharField(max_length=50, blank=True, null=True)
     area_of_study = models.TextField(blank=True, null=True)
-    mobile = models.CharField(max_length = 20, null=True, blank=True)
+    mobile = models.CharField(max_length = 20, null=True, blank=True, default='0493461541')
     address = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self): return f"Profile {self.user} {self.id}"
@@ -656,7 +656,7 @@ class TutorProfile(models.Model):
     welcome_message = models.TextField(null=True, blank=True)
     token = models.CharField(max_length=64, unique=True, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    mobile = models.CharField(max_length=20, blank=True, null=True)
+    mobile = models.CharField(max_length=20, blank=True, null=True, default='0493461541')
     address = models.CharField(max_length=255, blank=True, null=True)
 
     # Bookings

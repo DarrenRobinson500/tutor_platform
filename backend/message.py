@@ -104,12 +104,16 @@ def sms_enqueue(booking, message_type):
     )
 
 def process_sms_jobs():
-    # print("Process SMS Jobs")
+    print("Process SMS Jobs")
     now = timezone.now()
     jobs = SMSSendJob.objects.filter(
         scheduled_for__lte=now,
         cancelled=False
     )
+
+    print(f"PROCESS_SMS_JOBS: found {jobs.count()} jobs")
+    for job in jobs:
+        print(" - ", job)
 
     for job in jobs:
         tutor = User.objects.get(id=job.tutor_id)
@@ -123,7 +127,7 @@ def process_sms_jobs():
             phone_number=student.student_profile.mobile,
             status="queued"
         )
-
+        print("Process sms jobs:", msg)
         try:
             if settings.SMS_Mock:
                 print("SMS Sent:", job.body)
