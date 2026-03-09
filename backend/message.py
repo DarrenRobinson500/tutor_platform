@@ -128,17 +128,18 @@ def process_sms_jobs():
             status="queued"
         )
         print("Process sms jobs:", msg)
+        msg.status = "sent"
+        msg.sent_at = now
+        msg.save(update_fields=["provider_message_id", "status", "sent_at"])
+
+        job.cancelled = True
+        job.save(update_fields=["cancelled"])
+
         try:
-            if settings.SMS_Mock:
+            if settings.SMS_MOCK:
                 print("SMS Sent:", job.body)
             else:
                 msg.provider_message_id = clicksend_send_sms(msg.phone_number, job.body)
-            msg.status = "sent"
-            msg.sent_at = now
-            msg.save(update_fields=["provider_message_id", "status", "sent_at"])
-
-            job.cancelled = True
-            job.save(update_fields=["cancelled"])
 
         except Exception as e:
             # Mark as failed but keep the job so it can be retried later

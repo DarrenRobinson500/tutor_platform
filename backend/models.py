@@ -971,6 +971,9 @@ class SMSMessage(models.Model):
     sent_at = models.DateTimeField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
 
+    def __str__(self):
+        return f"{self.body} ({self.sent_at})"
+
 class SMSSendJob(models.Model):
     tutor = models.ForeignKey(User, on_delete=models.CASCADE)
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sms_sendjob_student")
@@ -981,7 +984,10 @@ class SMSSendJob(models.Model):
     cancelled = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"{self.tutor} {self.student} {self.body}"
+        if self.cancelled:
+            return f"To: {self.student}. Sent"
+        else:
+            return f"{self.tutor} {self.student} {self.body}"
 
 def get_or_create_conversation(tutor, student):
     convo, created = SMSConversation.objects.get_or_create(
