@@ -10,6 +10,8 @@ def clicksend_send_sms(to_number: str, body: str) -> str:
     Raises an exception if ClickSend returns an error.
     """
 
+    if not settings.SMS_SEND: return
+
     payload = {
         "messages": [
             {
@@ -21,11 +23,11 @@ def clicksend_send_sms(to_number: str, body: str) -> str:
         ]
     }
 
-    resp = requests.post(
-        CLICKSEND_BASE,
-        json=payload,
-        auth=(settings.CLICKSEND_USERNAME, settings.CLICKSEND_API_KEY)
-    )
+    # resp = requests.post(
+    #     CLICKSEND_BASE,
+    #     json=payload,
+    #     auth=(settings.CLICKSEND_USERNAME, settings.CLICKSEND_API_KEY)
+    # )
 
     data = resp.json()
 

@@ -2,6 +2,7 @@ from django.contrib.auth.hashers import make_password
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.decorators import api_view
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.contrib.auth import authenticate, login, logout
@@ -700,7 +701,7 @@ class TutorViewSet(viewsets.ModelViewSet):
 
         return Response(data, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=["get"], url_path="sms/(?P<conversation_id>[^/.]+)")
+    @action(detail=True, methods=["get"], url_path="sms/conversation/(?P<conversation_id>[^/.]+)")
     def sms_conversation(self, request, pk=None, conversation_id=None):
         tutor = self.get_object()
 
@@ -729,6 +730,21 @@ class TutorViewSet(viewsets.ModelViewSet):
                 }
                 for m in messages
             ]
+        })
+
+    @action(detail=True, methods=["get"], url_path="sms/activity")
+    def sms_activity(self, request, pk=None):
+        tutor = self.get_object()
+
+        today = timezone.localdate()
+        start_of_day = timezone.make_aware(datetime.combine(today, time.min))
+
+        jobs = (SMSSendJob.objects.filter(conversation__tutor_id=tutor.id, cancelled=False, retry_count__lt=3).order_by("-created_at"))
+        messages = (SMSMessage.objects.filter(conversation__tutor_id=tutor.id, created_at__gte=start_of_day,).select_related("conversation", "conversation__student").order_by("-created_at"))
+        print("SMS Activity (jobs):", tutor, jobs)
+        return Response({
+            "jobs": [job.to_dict() for job in jobs],
+            "messages": [msg.to_dict() for msg in messages],
         })
 
     @action(detail=True, methods=["get"])
@@ -763,58 +779,6 @@ class TutorViewSet(viewsets.ModelViewSet):
             "email": new_tutor.email,
             "password": password
         })
-
-    # @action(detail=True, methods=["get"])
-    # def weekly_availability(self, request, pk=None):
-    #     tutor = self.get_object()
-    #     data = get_availability_weekly(tutor)
-    #     return Response(data)
-
-    # @action(detail=True, methods=["POST"])
-    # def edit_weekly_booking(self, request, pk=None):
-    #     tutor = self.get_object()
-    #
-    #     weekday = request.data.get("weekday")
-    #     old_time = request.data.get("old_time")
-    #     new_time = request.data.get("new_time")
-    #     duration = int(request.data.get("duration_minutes", 60))
-    #     student_id = request.data.get("student_id")
-    #
-    #     if weekday is None or not old_time or not new_time:
-    #         return Response({"ok": False, "error": "Missing required fields."})
-    #
-    #     # Parse times
-    #     try:
-    #         old_start = datetime.strptime(old_time, "%H:%M").time()
-    #         new_start = datetime.strptime(new_time, "%H:%M").time()
-    #     except ValueError:
-    #         return Response({"ok": False, "error": "Invalid time format."})
-    #
-    #     # Compute new end time
-    #     new_end_dt = datetime.combine(date.today(), new_start) + timedelta(minutes=duration)
-    #     new_end = new_end_dt.time()
-    #
-    #     # Find the existing booking
-    #     try:
-    #         booking = BookingWeekly.objects.get(
-    #             tutor=tutor,
-    #             weekday=weekday,
-    #             start_time=old_start,
-    #         )
-    #     except BookingWeekly.DoesNotExist:
-    #         print("Edit - Couldn't find weekly booking")
-    #         return Response({"ok": False, "error": "Booking not found."})
-    #
-    #     # Update fields
-    #     booking.start_time = new_start
-    #     booking.end_time = new_end
-    #     print("Edit:", booking, booking.start_time, booking.end_time)
-    #
-    #     booking.save()
-    #     print("Booking edits were saved")
-    #     invalidate_availability_adhoc(tutor.id)
-    #
-    #     return Response({"ok": True})
 
     @action(detail=True, methods=["post"])
     def add_availability(self, request, pk=None):
@@ -874,6 +838,7 @@ class TutorViewSet(viewsets.ModelViewSet):
     def booking_action(self, request, pk=None):
         tutor = self.get_object()
         data = request.data
+        print("Booking action (data):", data)
 
         command = data.get("command") or data.get("action")
         booking_type = data.get("booking_type") or data.get("type")
@@ -885,36 +850,29 @@ class TutorViewSet(viewsets.ModelViewSet):
 
         # CREATE
         if command == "create":
+            print("→ start create")
+            # Delay the weekly and create adhoc (for a one-off change to a weekly schedule)
             if data.get("pause_weekly"):
-                print("Pausing weekly")
+                student_id = request.data.get("student_id")
+                student = User.objects.get(id=student_id)
                 weekly = BookingWeekly.objects.filter(tutor=tutor, student=student).first()
                 if weekly:
                     weekly.skip()
                     update_booking_caches(weekly, "skip")
-
             return create_booking(tutor, data, booking_type)
 
-        # MUTATE EXISTING BOOKING
+        # ADJUST EXISTING BOOKING
         try:
             booking = model.objects.get(id=booking_id)
         except model.DoesNotExist:
             print("Couldn't find booking. model, Booking id:", model, booking_id)
             return Response({"ok": False, "error": "Booking not found"}, status=404)
 
-        if command == "confirm":
-            return confirm_booking(booking)
-
-        if command == "edit":
-            return edit_booking(booking, data, booking_type)
-
-        if command == "skip":
-            return skip_booking(booking)
-
-        if command == "remove_skip":
-            return remove_skip_booking(booking)
-
-        if command == "delete":
-            return delete_booking(booking)
+        if command == "confirm":return confirm_booking(booking)
+        if command == "edit": return edit_booking(booking, data, booking_type)
+        if command == "skip": return skip_booking(booking)
+        if command == "remove_skip": return remove_skip_booking(booking)
+        if command == "delete":return delete_booking(booking, booking_type)
 
         return Response({"ok": False, "error": "Unknown command"}, status=400)
 
@@ -958,8 +916,11 @@ class StudentViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["get"])
     def home(self, request, pk=None):
+        print("Student Home (sms_send):", settings.SMS_SEND)
         student_profile = self.get_object()
-        return Response(student_profile.to_dict())
+        result = student_profile.to_dict()
+        print("Student home:", result)
+        return Response(result)
 
     @action(detail=True, methods=["get"])
     def booking(self, request, pk=None):
@@ -979,8 +940,6 @@ class StudentViewSet(viewsets.ModelViewSet):
         adhoc_slots = get_availability_adhoc(tutor, start_date)
         adhoc_bookings = get_adhoc_bookings(tutor, start_date)
         adhoc_bookings = mask_adhoc_bookings(adhoc_bookings, student.id)
-
-        print()
 
         return Response({
             "weekly_slots": weekly_slots,
@@ -1021,7 +980,7 @@ class StudentViewSet(viewsets.ModelViewSet):
                 password=make_password(password),
             )
             created_new_user = True
-            update_student_cache(user)
+
 
         StudentProfile.objects.get_or_create(user=user)
 
@@ -1030,6 +989,8 @@ class StudentViewSet(viewsets.ModelViewSet):
                 tutor_id=tutor_id,
                 student=user
             )
+
+        invalidate_students_cache_for_tutor(tutor_id)
 
         response_data = {
             "id": user.id,

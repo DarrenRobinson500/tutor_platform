@@ -1,6 +1,6 @@
 from .models import *
 from .clicksend import *
-SMS_PAUSE = timedelta(seconds=10)
+SMS_PAUSE = timedelta(minutes=10)
 
 def format_weekday(day_str):
     d = datetime.strptime(day_str, "%Y-%m-%d").date()
@@ -30,41 +30,32 @@ SMS_TEMPLATES = {
     ),
 
     # Tutor → Student
-    "tutor_confirmed": (
-        "Your booking is confirmed\n"
-        "{weekday}, {start}–{end}\n"
-        "Your tutor: {tutor_name}"
-    ),
-
-    "tutor_created": (
-        "A new booking has been scheduled for you\n"
-        "{weekday}, {start}–{end}\n"
-        "Created by {tutor_name}."
-    ),
-
-    "tutor_updated": (
-        "Your booking has been updated\n"
-        "{weekday}, {start}–{end}\n"
-        "Updated by {tutor_name}."
-    ),
-
-    "tutor_cancelled": (
-        "Your booking has been cancelled\n"
-        "{weekday}, {start}–{end}\n"
-        "Cancelled by {tutor_name}."
-    ),
+    "tutor_created": ("Hi {student_name}, your booking has been created by {tutor_name}. We will see you {date_and_time}\n"),
+    "tutor_created_weekly": ("Hi {student_name}, your weekly booking has been created by {tutor_name}. We will see you each week and the first booking is {date_and_time}\n"),
+    "tutor_updated": ("Hi {student_name}, your booking has been updated by {tutor_name}. We will see you {date_and_time}\n"),
+    "tutor_confirmed": ("Hi {student_name}, your booking has been confirmed by {tutor_name}. We will see you {date_and_time}\n"),
+    "tutor_unconfirmed": ("Hi {student_name}, your booking has been unconfirmed by {tutor_name}. We will not see you {date_and_time} Please call {tutor_name} if this is unexpected.\n"),
+    "tutor_skipped": ("Hi {student_name}, your weekly booking will be skipped this week. We will see you next week {date_and_time}\n"),
+    "tutor_unskipped": ("Hi {student_name}, your booking has been updated by {tutor_name}. We will see you {date_and_time}\n"),
+    "tutor_cancelled_weekly": ("Hi {student_name}, your weekly booking with {tutor_name} has been cancelled."),
+    "tutor_cancelled_adhoc": ("Hi {student_name}, your booking with {tutor_name} has been cancelled."),
 }
+
 DEBOUNCE_TYPES = set(SMS_TEMPLATES.keys())
 
-def sms_message(booking, message_type):
+def create_sms_body(booking, message_type):
     if message_type not in SMS_TEMPLATES:
         raise ValueError(f"Unknown SMS message type: {message_type}")
 
+    print("Create sms body:", booking)
+
     weekday = booking["day_str"]
+    date_and_time = format_sms_datetime(booking["start_iso"])
     start = booking["start_time"]
     end = booking["end_time"]
 
     context = {
+        "date_and_time": date_and_time,
         "weekday": weekday,
         "start": start,
         "end": end,
@@ -79,66 +70,78 @@ def sms_enqueue(booking, message_type):
     booking=booking.to_dict()
     tutor_id = booking["tutor_id"]
     student_id = booking["student_id"]
-
-    body = sms_message(booking, message_type)
+    conversation = get_or_create_conversation(User.objects.get(id=tutor_id), User.objects.get(id=student_id))
+    body = create_sms_body(booking, message_type)
     now = timezone.now()
     scheduled_for = now + SMS_PAUSE
 
     job = SMSSendJob.objects.filter(
-        tutor_id=tutor_id,
-        student_id=student_id,
+        conversation=conversation,
         cancelled=False
     ).first()
 
     if job:
         job.body = body
         job.scheduled_for = scheduled_for
-        job.save(update_fields=["body", "scheduled_for"])
+        job.retry_count = 0
+        job.save(update_fields=["body", "scheduled_for", "retry_count"])
         return job
 
     return SMSSendJob.objects.create(
-        tutor_id=tutor_id,
-        student_id=student_id,
+        conversation=conversation,
         body=body,
         scheduled_for=scheduled_for
     )
+
 
 def process_sms_jobs():
     now = timezone.now()
     jobs = SMSSendJob.objects.filter(
         scheduled_for__lte=now,
-        cancelled=False
+        cancelled=False,
+        retry_count__lt=3
     )
 
     for job in jobs:
-        tutor = User.objects.get(id=job.tutor_id)
-        student = User.objects.get(id=job.student_id)
-
-        # Send SMS
-        msg = SMSMessage.objects.create(
-            direction="outbound",
-            conversation=get_or_create_conversation(tutor, student),
-            body=job.body,
-            phone_number=student.student_profile.mobile,
-            status="queued"
-        )
-        msg.status = "sent"
-        msg.sent_at = now
-        msg.save(update_fields=["provider_message_id", "status", "sent_at"])
-
-        job.cancelled = True
-        job.save(update_fields=["cancelled"])
+        conversation = job.conversation
+        student = conversation.student
 
         try:
-            if settings.SMS_SEND:
-                msg.provider_message_id = clicksend_send_sms(msg.phone_number, job.body)
+            # Attempt to send
+            sms_send = get_bool("send_sms", default=False)
+            print("SMS Send:", sms_send)
+
+            if sms_send:
+                provider_id = clicksend_send_sms(
+                    student.student_profile.mobile,
+                    job.body
+                )
             else:
                 print("SMS Fake Send:", job.body)
+                provider_id = "FAKE-SEND"
+
+            # Create the message only on success
+            msg = SMSMessage.objects.create(
+                direction="outbound",
+                conversation=conversation,
+                body=job.body,
+                phone_number=student.student_profile.mobile,
+                provider_message_id=provider_id,
+                status="sent",
+                sent_at=now
+            )
+
+            # Cancel the job
+            job.cancelled = True
+            job.last_error = None
+            job.last_attempt_at = now
+            job.save(update_fields=["cancelled", "last_error", "last_attempt_at"])
 
         except Exception as e:
-            # Mark as failed but keep the job so it can be retried later
-            msg.status = "failed"
-            msg.save(update_fields=["status"])
+            # Record failure on the job
+            job.last_error = str(e)
+            job.last_attempt_at = now
+            job.retry_count += 1
+            job.save(update_fields=["last_error", "last_attempt_at", "retry_count"])
+
             print("SMS sending failed:", e)
-
-

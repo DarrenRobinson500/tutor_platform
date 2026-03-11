@@ -1,0 +1,69 @@
+    @action(detail=True, methods=["get"])
+    def sms(self, request, pk=None):
+        tutor = self.get_object()
+        conversations = SMSConversation.objects.filter(tutor=tutor).select_related("student").order_by("-last_message_at")
+
+        data = []
+        for convo in conversations:
+            last_msg = convo.messages.order_by("-created_at").first()
+            student = convo.student
+
+            data.append({
+                "conversation_id": convo.id,
+                "student_id": student.id,
+                "student_name": student.get_full_name() or student.username,
+                "last_message": last_msg.body if last_msg else "",
+                "last_message_at": last_msg.created_at if last_msg else convo.created_at,
+            })
+
+        return Response(data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["get"], url_path="sms/(?P<conversation_id>[^/.]+)")
+    def sms_conversation(self, request, pk=None, conversation_id=None):
+        tutor = self.get_object()
+
+        try:
+            convo = SMSConversation.objects.get(id=conversation_id, tutor=tutor)
+        except SMSConversation.DoesNotExist:
+            return Response({"error": "Conversation not found"}, status=404)
+
+        messages = convo.messages.order_by("created_at")
+
+        return Response({
+            "conversation_id": convo.id,
+            "tutor_id": tutor.id,
+            "student_id": convo.student.id,
+            "student_name": convo.student.get_full_name(),
+            "messages": [
+                {
+                    "id": m.id,
+                    "direction": m.direction,
+                    "body": m.body,
+                    "created_at": m.created_at,
+                    "sent_at": m.sent_at,
+                    "delivered_at": m.delivered_at,
+                    "status": m.status,
+                    "phone_number": m.phone_number,
+                }
+                for m in messages
+            ]
+        })
+
+    @api_view(["GET"])
+    def tutor_sms_jobs(request, tutor_id):
+        jobs = (
+            SMSSendJob.objects
+            .filter(tutor_id=tutor_id)
+            .order_by("-created_at")
+        )
+        return Response({"jobs": [job.to_dict() for job in jobs]})
+
+    @api_view(["GET"])
+    def tutor_sms_messages(request, tutor_id):
+        messages = (
+            SMSMessage.objects
+            .filter(conversation__tutor_id=tutor_id)
+            .select_related("conversation", "conversation__student")
+            .order_by("-created_at")
+        )
+        return Response({"messages": [msg.to_dict() for msg in messages]})

@@ -1,0 +1,38 @@
+    def to_dict(self):
+        # Reference date for localisation
+        ref_date = self.start_date or date.today()
+
+        # Build naive datetimes
+        naive_start = datetime.combine(ref_date, self.start_time)
+        naive_end = datetime.combine(ref_date, self.end_time)
+
+        # Make aware before localising
+        aware_start = timezone.make_aware(naive_start)
+        aware_end = timezone.make_aware(naive_end)
+
+        # Localise
+        local_start = timezone.localtime(aware_start)
+        local_end = timezone.localtime(aware_end)
+
+        # Compute duration
+        duration_minutes = int((local_end - local_start).total_seconds() // 60)
+
+        # Day string for grouping
+        day_str = ref_date.isoformat()
+
+        return {
+            "id": self.id,
+            "student_id": self.student.id if self.student else None,
+            "student_name": self.student.get_full_name() if self.student else None,
+            "weekday": self.weekday,
+            "start_time": local_start.time().isoformat(timespec="minutes"),
+            "end_time": local_end.time().isoformat(timespec="minutes"),
+            "start_date": self.start_date,
+            "day_str": day_str,
+            "confirmed": self.confirmed,
+            "duration_minutes": duration_minutes,
+            "booking_type": "weekly",
+            "student_can_edit": self.student_can_edit(),
+            "tutor_name": self.tutor.get_full_name() if self.tutor else None,
+            "tutor_id": self.tutor.id if self.tutor else None,
+        }

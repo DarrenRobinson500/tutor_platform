@@ -26,10 +26,11 @@ def create_booking(tutor, data, booking_type):
             end_time=end_time,
             confirmed=True,
         )
+        sms_enqueue(booking, "tutor_created_weekly")
 
     else:  # adhoc
         print("Create ad hoc")
-        dt_str = data.get("start_time")
+        dt_str = data.get("datetime")
         start_dt, end_dt = get_datetimes(dt_str, tutor.default_session_minutes)
         print("Create ad hoc", start_dt, end_dt)
 
@@ -40,30 +41,33 @@ def create_booking(tutor, data, booking_type):
             end_datetime=end_dt,
             confirmed=True,
         )
+        sms_enqueue(booking, "tutor_created")
 
-        # update_booking_caches(booking, "create")
-        # sms_enqueue(booking, "tutor_created")
-        return Response({"ok": True, "id": booking.id})
-
-    # except Exception as e:
-    #     return Response({"ok": False, "error": str(e)}, status=400)
+    update_booking_caches(booking, "create")
+    return Response({"ok": True, "id": booking.id})
 
 def confirm_booking(booking):
     booking.confirmed = not booking.confirmed
     booking.save()
 
     update_booking_caches(booking, "confirm")
-    sms_enqueue(booking, "tutor_updated")
+    if booking.confirmed:
+        sms_enqueue(booking, "tutor_confirmed")
+    else:
+        sms_enqueue(booking, "tutor_unconfirmed")
 
     return Response({"ok": True, "confirmed": booking.confirmed})
 
 def edit_booking(booking, data, booking_type):
     duration = int(data.get("duration", 60))
+    changed_date_or_starttime = False
 
-    if booking_type == "weekly":
+    if booking_type in ["weekly", "weekly_paused"]:
         weekday = data.get("weekday")
         start_time_str = data.get("start_time")
         start_time, end_time = get_times(start_time_str, duration)
+
+        if booking.weekday != weekday or booking.start_time != start_time: changed_date_or_starttime = True
 
         booking.weekday = weekday
         booking.start_time = start_time
@@ -72,32 +76,37 @@ def edit_booking(booking, data, booking_type):
     else:  # adhoc
         start_datetime_str = data.get("start_time")
         start_dt, end_dt = get_datetimes(start_datetime_str, duration)
+        if booking.start_datetime != start_dt : changed_date_or_starttime = True
 
         booking.start_datetime = start_dt
         booking.end_datetime = end_dt
 
     booking.save()
     update_booking_caches(booking, "edit")
-    sms_enqueue(booking, "tutor_updated")
+    if changed_date_or_starttime:
+        sms_enqueue(booking, "tutor_updated")
 
     return Response({"ok": True, "edit": booking.id})
 
 def skip_booking(booking):
     booking.skip()
     update_booking_caches(booking, "skip")
-    sms_enqueue(booking, "tutor_updated")
+    sms_enqueue(booking, "tutor_skipped")
 
     return Response({"ok": True, "skip": booking.id})
 
 def remove_skip_booking(booking):
     booking.remove_skip()
     update_booking_caches(booking, "remove_skip")
-    sms_enqueue(booking, "tutor_updated")
+    sms_enqueue(booking, "tutor_unskipped")
 
     return Response({"ok": True, "remove_skip": booking.id})
 
-def delete_booking(booking):
-    sms_enqueue(booking, "tutor_cancelled")
+def delete_booking(booking, booking_type):
+    if booking_type in ["adhoc"]:
+        sms_enqueue(booking, "tutor_cancelled_adhoc")
+    else:
+        sms_enqueue(booking, "tutor_cancelled_weekly")
     update_booking_caches(booking, "delete")
     booking.delete()
 

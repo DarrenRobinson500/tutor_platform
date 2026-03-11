@@ -1,0 +1,26 @@
+    def to_dict(self):
+        # Localise datetimes
+        local_start = timezone.localtime(self.start_datetime)
+        local_end = timezone.localtime(self.end_datetime)
+
+        # Compute duration
+        duration_minutes = int((local_end - local_start).total_seconds() // 60)
+
+        # Day string for grouping
+        day_str = local_start.date().isoformat()
+
+        return {
+            "id": self.id,
+            "student_id": self.student.id,
+            "student_name": self.student.get_full_name(),
+            "start_time": local_start.time().isoformat(timespec="minutes"),
+            "end_time": local_end.time().isoformat(timespec="minutes"),
+            "start_date": day_str,
+            "day_str": day_str,
+            "confirmed": self.confirmed,
+            "duration_minutes": duration_minutes,
+            "booking_type": "adhoc",
+            "student_can_edit": self.student_can_edit(),
+            "tutor_name": self.tutor.get_full_name() if self.tutor else None,
+            "tutor_id": self.tutor.id if self.tutor else None,
+        }

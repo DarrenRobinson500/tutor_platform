@@ -85,27 +85,15 @@ class User(AbstractUser):
         return None
 
     def next_booking(self):
-        if self.role != "student":
-            return None
-
         weekly = self.next_weekly_booking()
         adhoc = self.next_ad_hoc_booking()
+        print("Next booking", self, weekly, adhoc)
 
-        # If neither exists
-        if not weekly and not adhoc:
-            return None
+        if not weekly and not adhoc: return None
+        if not adhoc: return weekly
+        if not weekly: return adhoc
 
-        # If only one exists
-        if weekly and not adhoc:
-            return weekly
-        if adhoc and not weekly:
-            return adhoc
-
-        # Both exist → compare start times
-        weekly_start = datetime.fromisoformat(weekly["start"])
-        adhoc_start = datetime.fromisoformat(adhoc["start"])
-
-        return weekly if weekly_start <= adhoc_start else adhoc
+        return weekly if weekly["start_iso"] <= adhoc["start_iso"] else adhoc
 
     def next_ad_hoc_booking(self):
         # print("Next adhoc start")
@@ -120,34 +108,16 @@ class User(AbstractUser):
 
         if not next_booking: return None
 
-        return {
-            "id": next_booking.id,
-            "start": next_booking.start_datetime.isoformat(),
-            "end": next_booking.end_datetime.isoformat(),
-            "confirmed": next_booking.confirmed,
-            "student_can_edit": next_booking.student_can_edit(),
-        }
+        result = next_booking.to_dict()
+        return result
 
     def next_weekly_booking(self):
         weekly_bookings = BookingWeekly.objects.filter(student=self)
         if not weekly_bookings.exists(): return None
         next_booking = sorted(weekly_bookings, key=lambda wb: wb.next_occurrence())[0]
 
-        start_dt = next_booking.next_occurrence()
-        session_minutes = int(
-            (datetime.combine(date.today(), next_booking.end_time) -
-             datetime.combine(date.today(), next_booking.start_time)).total_seconds() / 60
-        )
-        end_dt = start_dt + timedelta(minutes=session_minutes)
-
-        return {
-            "id": next_booking.id,
-            "start": start_dt.isoformat(),
-            "end": end_dt.isoformat(),
-            "confirmed": next_booking.confirmed,
-            "start_date": next_booking.start_date.isoformat() if next_booking.start_date else None,
-            "student_can_edit": next_booking.student_can_edit(),
-        }
+        result = next_booking.to_dict()
+        return result
 
     def booking_mode(self):
         weekly = self.next_weekly_booking()
@@ -155,16 +125,18 @@ class User(AbstractUser):
         mode = "weekly_booking"
         next_booking = weekly
 
+        print("Booking mode:", weekly, weekly.get("start_iso"))
+
         if not weekly and not adhoc:
             mode = "no_booking"
         elif weekly and adhoc:
-            weekly_start = weekly["start"]
-            adhoc_start = adhoc["start"]
+            weekly_start = weekly["start_iso"]
+            adhoc_start = adhoc["start_iso"]
             if adhoc_start < weekly_start:
                 mode = "weekly_booking_but_adhoc_this_week"
                 next_booking = adhoc
         elif weekly and weekly.get("start_date"):
-            resume_date = date.fromisoformat(weekly["start_date"])
+            resume_date = weekly["start_date"]
             today = date.today()
             if resume_date > today:
                 mode = "weekly_booking_but_paused"
@@ -504,37 +476,26 @@ class BookingWeekly(models.Model):
     def student_can_edit(self):
         return self.next_occurrence() > now + timedelta(days=days_needed_to_cancel)
 
+    def duration(self):
+        return (self.end_time.hour * 60 + self.end_time.minute) - (self.start_time.hour * 60 + self.start_time.minute)
+
     def to_dict(self):
-        # Reference date for localisation
-        ref_date = self.start_date or date.today()
-
-        # Build naive datetimes
-        naive_start = datetime.combine(ref_date, self.start_time)
-        naive_end = datetime.combine(ref_date, self.end_time)
-
-        # Make aware before localising
-        aware_start = timezone.make_aware(naive_start)
-        aware_end = timezone.make_aware(naive_end)
-
-        # Localise
-        local_start = timezone.localtime(aware_start)
-        local_end = timezone.localtime(aware_end)
-
-        # Compute duration
-        duration_minutes = int((local_end - local_start).total_seconds() // 60)
-
-        # Day string for grouping
-        day_str = ref_date.isoformat()
+        start = self.next_occurrence()
+        duration_minutes = self.duration()
+        end = start + timedelta(minutes=duration_minutes)
+        day_str = start.date().isoformat()
 
         return {
             "id": self.id,
             "student_id": self.student.id if self.student else None,
             "student_name": self.student.get_full_name() if self.student else None,
             "weekday": self.weekday,
-            "start_time": local_start.time().isoformat(timespec="minutes"),
-            "end_time": local_end.time().isoformat(timespec="minutes"),
-            "start_date": self.start_date,
+            "start_time": start.time().isoformat(timespec="minutes"),
+            "end_time": end.time().isoformat(timespec="minutes"),
             "day_str": day_str,
+            "start_iso": start.isoformat(),
+            "end_iso": end.isoformat(),
+            "start_date": self.start_date,
             "confirmed": self.confirmed,
             "duration_minutes": duration_minutes,
             "booking_type": "weekly",
@@ -542,7 +503,6 @@ class BookingWeekly(models.Model):
             "tutor_name": self.tutor.get_full_name() if self.tutor else None,
             "tutor_id": self.tutor.id if self.tutor else None,
         }
-
 
 class BookingAdhoc(models.Model):
     tutor = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="appointment_tutor")
@@ -559,25 +519,26 @@ class BookingAdhoc(models.Model):
     def student_can_edit(self):
         return self.start_datetime > now + timedelta(days=days_needed_to_cancel)
 
+    def duration(self):
+        return (self.end_datetime.hour * 60 + self.end_datetime.minute) - (self.start_datetime.hour * 60 + self.start_datetime.minute)
+
     def to_dict(self):
         # Localise datetimes
-        local_start = timezone.localtime(self.start_datetime)
-        local_end = timezone.localtime(self.end_datetime)
-
-        # Compute duration
-        duration_minutes = int((local_end - local_start).total_seconds() // 60)
-
-        # Day string for grouping
-        day_str = local_start.date().isoformat()
+        start = timezone.localtime(self.start_datetime)
+        end = timezone.localtime(self.end_datetime)
+        duration_minutes = self.duration()
+        day_str = start.date().isoformat()
 
         return {
             "id": self.id,
             "student_id": self.student.id,
             "student_name": self.student.get_full_name(),
-            "start_time": local_start.time().isoformat(timespec="minutes"),
-            "end_time": local_end.time().isoformat(timespec="minutes"),
+            "start_time": start.time().isoformat(timespec="minutes"),
+            "end_time": end.time().isoformat(timespec="minutes"),
             "start_date": day_str,
             "day_str": day_str,
+            "start_iso": start.isoformat(),
+            "end_iso": end.isoformat(),
             "confirmed": self.confirmed,
             "duration_minutes": duration_minutes,
             "booking_type": "adhoc",
@@ -600,7 +561,7 @@ class TutorStudent(models.Model):
     class Meta:
         unique_together = ("tutor", "student")
 
-    def __str__(self): return f"Student: {self.student} Tutor: {self.tutor.id} Student: {self.student.id}"
+    def __str__(self): return f"Tutor: {self.tutor} Student: {self.student}"
 
 class StudentProfile(models.Model):
     user = models.OneToOneField(django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="student_profile")
@@ -644,6 +605,8 @@ class StudentProfile(models.Model):
             "tutor_address": tutor_profile.address if tutor_profile else None,
 
             # Booking info (already unified via booking.to_dict())
+            "booking_mode": u.booking_mode()['mode'],
+            "next_booking": u.next_booking(),
             "next_ad_hoc_booking": u.next_ad_hoc_booking(),
             "next_weekly_booking": u.next_weekly_booking(),
         }
@@ -950,6 +913,41 @@ class Note(models.Model):
             return f"Note by {self.author} on {self.template.name}"
         return f"Note by {self.author} (general)"
 
+# Global
+
+class GlobalSetting(models.Model):
+    key = models.CharField(max_length=100, unique=True)
+    value = models.CharField(max_length=500)
+
+    def __str__(self):
+        return f"{self.key} = {self.value}"
+
+    @staticmethod
+    def get(key, default=None):
+        try:
+            return GlobalSetting.objects.get(key=key).value
+        except GlobalSetting.DoesNotExist:
+            return default
+
+    @staticmethod
+    def set(key, value):
+        obj, _ = GlobalSetting.objects.update_or_create(
+            key=key,
+            defaults={"value": value},
+        )
+        return obj
+
+from django.core.cache import cache
+
+def get_bool(key, default=False):
+    cache_key = f"global_setting_{key}"
+    val = cache.get(cache_key)
+    if val is None:
+        val = GlobalSetting.get(key, default)
+        cache.set(cache_key, val, 600)  # cache for 10 minutes
+    return val.lower() in ("1", "true", "yes", "on")
+
+
 # Messaging
 
 class SMSConversation(models.Model):
@@ -958,36 +956,81 @@ class SMSConversation(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     last_message_at = models.DateTimeField(auto_now=True)
 
+    def __str__(self):
+        return f"{self.tutor} {self.student}"
+
 class SMSMessage(models.Model):
     direction = models.CharField(max_length=10, choices=[("outbound", "Outbound"), ("inbound", "Inbound")])
     conversation = models.ForeignKey(SMSConversation, on_delete=models.CASCADE, related_name="messages")
-
     body = models.TextField()
     phone_number = models.CharField(max_length=20, null=True, blank=True)
     provider_message_id = models.CharField(max_length=100, null=True, blank=True)
-
     status = models.CharField(max_length=20, default="queued")
     created_at = models.DateTimeField(auto_now_add=True)
     sent_at = models.DateTimeField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.body} ({self.sent_at})"
+        return f"{self.body} (Sent: {format_sms_datetime_django(self.sent_at)})"
+
+    @property
+    def tutor(self):
+        return self.conversation.tutor
+
+    @property
+    def student(self):
+        return self.conversation.student
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "direction": self.direction,
+            "tutor_id": self.tutor.id,
+            "student_id": self.student.id,
+            "student_name": f"{self.student.first_name} {self.student.last_name}",
+            "body": self.body,
+            "created_at": self.created_at.isoformat(),
+            "sent_at": self.sent_at.isoformat() if self.sent_at else None,
+            "status": self.status,
+        }
 
 class SMSSendJob(models.Model):
-    tutor = models.ForeignKey(User, on_delete=models.CASCADE)
-    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sms_sendjob_student")
-
+    conversation = models.ForeignKey(SMSConversation, blank=True, null=True, on_delete=models.CASCADE, related_name="jobs")
     body = models.TextField()
     scheduled_for = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
     cancelled = models.BooleanField(default=False)
 
+    last_error = models.TextField(null=True, blank=True)
+    last_attempt_at = models.DateTimeField(null=True, blank=True)
+    retry_count = models.IntegerField(default=0)
+
     def __str__(self):
+        result = f"{self.conversation}"
         if self.cancelled:
-            return f"To: {self.student}. Sent"
-        else:
-            return f"{self.tutor} {self.student} {self.body}"
+            result += " [Sent]"
+        return result
+
+    @property
+    def time_until_sent(self):
+        return self.scheduled_for - timezone.now()
+
+    def to_dict(self):
+        student = self.conversation.student
+        tutor = self.conversation.tutor
+
+        return {
+            "id": self.id,
+            "tutor_id": tutor.id,
+            "student_id": student.id,
+            "student_name": f"{student.first_name} {student.last_name}",
+            "body": self.body,
+            "created_at": self.created_at.isoformat(),
+            "scheduled_for": self.scheduled_for.isoformat(),
+            "time_until_sent_seconds": self.time_until_sent.total_seconds(),
+            "cancelled": self.cancelled,
+        }
+
 
 def get_or_create_conversation(tutor, student):
     convo, created = SMSConversation.objects.get_or_create(

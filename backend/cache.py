@@ -84,12 +84,12 @@ def update_student_cache(student):
             ]
 
 
-# def invalidate_students_cache_for_tutor(tutor_id):
-#     global STUDENTS_CACHE
-#     print("Invalidating student cache for tutor:", tutor_id)
-#     STUDENTS_CACHE = {}
-    # if tutor_id in STUDENTS_CACHE:
-    #     del STUDENTS_CACHE[tutor_id]
+def invalidate_students_cache_for_tutor(tutor_id):
+    global STUDENTS_CACHE
+    print("Invalidating student cache for tutor:", tutor_id)
+    # STUDENTS_CACHE = {}
+    if tutor_id in STUDENTS_CACHE:
+        del STUDENTS_CACHE[tutor_id]
 
 
 # ------------AD HOC SLOTS -------------

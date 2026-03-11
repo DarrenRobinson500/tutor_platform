@@ -54,6 +54,36 @@ def str_to_date(date_str):
     print("Str to Date (local):", dt)
     return dt
 
+
+def format_sms_datetime(iso_str):
+    print("Format sms datetime (input):", iso_str)
+    dt = datetime.fromisoformat(iso_str)
+    weekday = dt.strftime("%a")
+    day = dt.day
+    if 11 <= day <= 13:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+    day_str = f"{day}{suffix}"
+    month = dt.strftime("%B")
+    time_str = dt.strftime("%I:%M%p").lower()
+    return f"{weekday}, {day_str} {month} at {time_str}."
+
+def format_sms_datetime_django(dt):
+    weekday = dt.strftime("%a")
+    day = dt.day
+    if 11 <= day <= 13:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+    day_str = f"{day}{suffix}"
+    month = dt.strftime("%B")
+    time_str = dt.strftime("%I:%M%p").lstrip("0").lower()
+
+    return f"{weekday}, {day_str} {month} at {time_str}."
+
+
+
 def get_times(start_time_str, duration):
     start_time_str = start_time_str.strip()
     if len(start_time_str) == 8 and start_time_str.count(":") == 2:

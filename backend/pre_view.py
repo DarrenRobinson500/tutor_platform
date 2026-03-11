@@ -41,7 +41,7 @@ def get_combined_calendar(tutor, start_date_iso):
                 if isinstance(wb_start_date, datetime):
                     wb_start_date = wb_start_date.date()
 
-                print("Get combined calendar. Types:", type(day), type(wb_start_date))
+                # print("Get combined calendar. Types:", type(day), type(wb_start_date))
 
                 if day < wb_start_date :
                     is_paused = True
