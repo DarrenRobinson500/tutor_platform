@@ -12,26 +12,19 @@ def format_time(t_str):
 
 SMS_TEMPLATES = {
     # Student → Tutor
-    "student_created": (
-        "New booking request from {student_name}\n"
-        "{weekday}, {start}–{end}\n"
-        "Please confirm or edit this booking in your dashboard."
-    ),
-
-    "student_updated": (
-        "Booking updated by {student_name}\n"
-        "{weekday}, {start}–{end}\n"
-        "Review the changes in your dashboard."
-    ),
-
-    "student_cancelled": (
-        "Booking cancelled by {student_name}\n"
-        "{weekday}, {start}–{end} has been cancelled."
-    ),
+    "student_create_adhoc": ("Hi {tutor_name}, {student_name} has created a booking: {date_and_time}\n"),
+    "student_create_weekly": ("Hi {tutor_name}, a weekly booking has been created by {student_name}. The first booking is {date_and_time}\n"),
+    "student_updated": ("Hi {tutor_name}, your booking has been updated by {student_name}. They will see you {date_and_time}\n"),
+    "student_confirmed": ("Hi {tutor_name}, your booking has been confirmed by {student_name}. They will see you {date_and_time}\n"),
+    "student_unconfirmed": ("Hi {tutor_name}, your booking has been unconfirmed by {student_name}. They will not see you {date_and_time} Please call {student_name} if this is unexpected.\n"),
+    "student_skipped": ("Hi {tutor_name}, your weekly booking will be skipped this week. They will see you next week {date_and_time}\n"),
+    "student_unskipped": ("Hi {tutor_name}, your booking has been updated by {student_name}. They will see you {date_and_time}\n"),
+    "student_cancelled_weekly": ("Hi {tutor_name}, your weekly booking with {student_name} has been cancelled."),
+    "student_cancelled_adhoc": ("Hi {tutor_name}, your booking with {student_name} has been cancelled."),
 
     # Tutor → Student
-    "tutor_created": ("Hi {student_name}, your booking has been created by {tutor_name}. We will see you {date_and_time}\n"),
-    "tutor_created_weekly": ("Hi {student_name}, your weekly booking has been created by {tutor_name}. We will see you each week and the first booking is {date_and_time}\n"),
+    "tutor_create_adhoc": ("Hi {student_name}, your booking has been created by {tutor_name}. We will see you {date_and_time}\n"),
+    "tutor_create_weekly": ("Hi {student_name}, your weekly booking has been created by {tutor_name}. We will see you each week and the first booking is {date_and_time}\n"),
     "tutor_updated": ("Hi {student_name}, your booking has been updated by {tutor_name}. We will see you {date_and_time}\n"),
     "tutor_confirmed": ("Hi {student_name}, your booking has been confirmed by {tutor_name}. We will see you {date_and_time}\n"),
     "tutor_unconfirmed": ("Hi {student_name}, your booking has been unconfirmed by {tutor_name}. We will not see you {date_and_time} Please call {tutor_name} if this is unexpected.\n"),
@@ -43,9 +36,11 @@ SMS_TEMPLATES = {
 
 DEBOUNCE_TYPES = set(SMS_TEMPLATES.keys())
 
-def create_sms_body(booking, message_type):
-    if message_type not in SMS_TEMPLATES:
-        raise ValueError(f"Unknown SMS message type: {message_type}")
+def create_sms_body(booking, message_type, user_role):
+    combined_type = f"{user_role}_{message_type}"
+    if combined_type not in SMS_TEMPLATES:
+        print("Unknown message type:", combined_type)
+        raise ValueError(f"Unknown SMS message type: {combined_type}")
 
     # print("Create sms body:", booking)
 
@@ -63,15 +58,15 @@ def create_sms_body(booking, message_type):
         "tutor_name": booking.get("tutor_name"),
     }
 
-    template = SMS_TEMPLATES[message_type]
+    template = SMS_TEMPLATES[combined_type]
     return template.format(**context)
 
-def sms_enqueue(booking, message_type):
+def sms_enqueue(booking, message_type, user_role):
     booking=booking.to_dict()
     tutor_id = booking["tutor_id"]
     student_id = booking["student_id"]
     conversation = get_or_create_conversation(User.objects.get(id=tutor_id), User.objects.get(id=student_id))
-    body = create_sms_body(booking, message_type)
+    body = create_sms_body(booking, message_type, user_role)
     now = timezone.now()
     scheduled_for = now + SMS_PAUSE
 

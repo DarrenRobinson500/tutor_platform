@@ -741,11 +741,14 @@ class TutorViewSet(viewsets.ModelViewSet):
 
         jobs = (SMSSendJob.objects.filter(conversation__tutor_id=tutor.id, cancelled=False, retry_count__lt=3).order_by("-created_at"))
         messages = (SMSMessage.objects.filter(conversation__tutor_id=tutor.id, created_at__gte=start_of_day,).select_related("conversation", "conversation__student").order_by("-created_at"))
+        active = get_bool("sms_send", default=False)
+        # print("active's type:", type(active))
+
 
         return Response({
             "jobs": [job.to_dict() for job in jobs],
             "messages": [msg.to_dict() for msg in messages],
-            "active": get_bool("sms_send", default=False)
+            "active": active
         })
 
     @action(detail=True, methods=["get"])
@@ -839,7 +842,8 @@ class TutorViewSet(viewsets.ModelViewSet):
     def booking_action(self, request, pk=None):
         tutor = self.get_object()
         data = request.data
-        # print("Booking action (data):", data)
+        print("Booking action (data):", data)
+        user_role = request.user.role
 
         command = data.get("command") or data.get("action")
         booking_type = data.get("booking_type") or data.get("type")
@@ -860,7 +864,7 @@ class TutorViewSet(viewsets.ModelViewSet):
                 if weekly:
                     weekly.skip()
                     update_booking_caches(weekly, "skip")
-            return create_booking(tutor, data, booking_type)
+            return create_booking(tutor, data, booking_type, user_role)
 
         # ADJUST EXISTING BOOKING
         try:
@@ -869,11 +873,11 @@ class TutorViewSet(viewsets.ModelViewSet):
             print("Couldn't find booking. model, Booking id:", model, booking_id)
             return Response({"ok": False, "error": "Booking not found"}, status=404)
 
-        if command == "confirm":return confirm_booking(booking)
-        if command == "edit": return edit_booking(booking, data, booking_type)
-        if command == "skip": return skip_booking(booking)
-        if command == "remove_skip": return remove_skip_booking(booking)
-        if command == "delete":return delete_booking(booking, booking_type)
+        if command == "confirm":return confirm_booking(booking, user_role)
+        if command == "edit": return edit_booking(booking, data, booking_type, user_role)
+        if command == "skip": return skip_booking(booking, user_role)
+        if command == "remove_skip": return remove_skip_booking(booking, user_role)
+        if command == "delete":return delete_booking(booking, booking_type, user_role)
 
         return Response({"ok": False, "error": "Unknown command"}, status=400)
 
@@ -921,7 +925,6 @@ class StudentViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["get"])
     def home(self, request, pk=None):
-        print("Student Home (sms_send):", settings.SMS_SEND)
         student_profile = self.get_object()
         result = student_profile.to_dict()
         print("Student home:", result)

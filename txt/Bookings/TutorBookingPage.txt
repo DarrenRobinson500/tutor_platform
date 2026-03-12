@@ -37,6 +37,10 @@ export function TutorBookingPage() {
   const [adhocDate, setAdhocDate] = useState("");
   const [adhocTime, setAdhocTime] = useState("16:00");
   const [adhocLoading, setAdhocLoading] = useState(false);
+  const [smsJobs, setSmsJobs] = useState<any[]>([]);
+  const [smsMessages, setSmsMessages] = useState<any[]>([]);
+  const [smsLoading, setSmsLoading] = useState(false);
+  const [smsActive, setSmsActive] = useState<boolean | null>(null);
 
   const [editing, setEditing] = useState<{
     date: string;
@@ -49,34 +53,63 @@ export function TutorBookingPage() {
   const [confirmLoading, setConfirmLoading] = useState<number | null>(null);
 
 
-  // -----------------------------
-  // Load booking data
-  // -----------------------------
+  // Load booking and message data
+
   const load = async () => {
     if (!id) return;
 
     setLoading(true);
-    try {
-      const res = await apiFetch(`/api/tutors/${id}/booking/`);
-      const data = await res.json();
+    setSmsLoading(true);
 
-      setStudents(data.students || []);
-      setWeek1(data.week1 || null);
-      setWeek2(data.week2 || null);
+    try {
+      const [bookingRes, smsRes] = await Promise.all([
+        apiFetch(`/api/tutors/${id}/booking/`),
+        apiFetch(`/api/tutors/${id}/sms/activity/`)
+      ]);
+
+      const bookingData = await bookingRes.json();
+      const smsData = await smsRes.json();
+
+      // Booking data
+      setStudents(bookingData.students || []);
+      setWeek1(bookingData.week1 || null);
+      setWeek2(bookingData.week2 || null);
+
+      // SMS data
+      setSmsJobs(smsData.jobs || []);
+      setSmsMessages(smsData.messages || []);
+      setSmsActive(smsData.active);
+      console.log("Set SMS Active:", smsActive)
+      console.log("Set SMS Messages:", smsMessages)
+
+
     } finally {
       setLoading(false);
+      setSmsLoading(false);
     }
   };
+
 
   useEffect(() => {
     load();
   }, [id]);
 
-  const reload = async () => load();
+  // Timer
 
-  // -----------------------------
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSmsJobs(jobs =>
+        jobs.map(j => ({
+          ...j,
+          time_until_sent_seconds: j.time_until_sent_seconds - 1
+        }))
+      );
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Booking actions
-  // -----------------------------
 
   const openEditor = (date: string, booking: any, index: number) => {
     setEditing({ date, booking, index });
@@ -88,7 +121,7 @@ export function TutorBookingPage() {
   const handleBookingAction = async (
     bookingId: number,
     bookingType: string,
-    action: "confirm" | "delete" | "skip" | "remove_skip" | "edit",
+    action: "create" | "confirm" | "delete" | "skip" | "remove_skip" | "edit",
     extra: any = {}
   ) => {
     try {
@@ -110,7 +143,9 @@ export function TutorBookingPage() {
         return;
       }
 
-      if (action === "confirm") {
+      if (action === "create") {
+        setMessage("Booking created.");
+      } else if (action === "confirm") {
         setMessage(data.confirmed ? "Booking confirmed." : "Booking unconfirmed.");
       } else if (action === "delete") {
         setMessage("Booking deleted.");
@@ -121,61 +156,34 @@ export function TutorBookingPage() {
       } else if (action === "edit") {
         setMessage("Booking updated.");
       }
+      setEditing(null);
 
-      await reload();
+      await load();
     } catch {
       setMessage("Error performing booking action.");
     }
   };
 
-  const handleCreateBooking = async (payload: any) => {
-    const type = payload.booking_type;
+const createWeekly = () => {
+  if (!selectedStudentId) {
+    setMessage("Please select a student for the weekly booking.");
+    return;
+  }
 
-    // Weekly booking → must use selectedStudentId
-    if (type === "weekly") {
-      if (!selectedStudentId) {
-        setMessage("Please select a student for the weekly booking.");
-        return;
-      }
-      payload.student_id = selectedStudentId;
-    }
+  const pythonDay = (weeklyDay + 6) % 7;
 
-    // Ad‑hoc booking → must use adhocStudentId
-    if (type === "adhoc") {
-      if (!adhocStudentId) {
-        setMessage("Please select a student for the ad‑hoc booking.");
-        return;
-      }
-      payload.student_id = adhocStudentId;
-    }
-
-    setWeeklyLoading(true);
-    try {
-      const res = await apiFetch(`/api/tutors/${id}/create_booking/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-      setMessage(data.ok ? "Booking created." : data.error);
-      await reload();
-    } catch {
-      setMessage("Error creating booking.");
-    } finally {
-      setWeeklyLoading(false);
-    }
-  };
-
-  const createWeekly = () => {
-    const pythonDay = (weeklyDay + 6) % 7;
-
-    handleCreateBooking({
+  handleBookingAction(
+    0,
+    "weekly",
+    "create",
+    {
       booking_type: "weekly",
+      student_id: selectedStudentId,
       weekday: pythonDay,
       time: weeklyTime,
-    });
-  };
+    }
+  );
+};
 
 const createAdhoc = () => {
   if (!adhocStudentId) {
@@ -189,15 +197,17 @@ const createAdhoc = () => {
 
   const datetime = `${adhocDate}T${adhocTime}:00`;
 
-  handleCreateBooking({
-    booking_type: "adhoc",
-    datetime,
-    student_id: adhocStudentId,
-  });
+  handleBookingAction(
+    0,
+    "adhoc",
+    "create",
+    {
+      booking_type: "adhoc",
+      student_id: adhocStudentId,
+      datetime,
+    }
+  );
 };
-
-
-
 
   // -----------------------------
   // Render
@@ -219,6 +229,8 @@ const createAdhoc = () => {
             <ExistingBookingsWeek
               week={week1}
               handleBookingAction={handleBookingAction}
+              editing={editing}
+              setEditing={setEditing}
             />
           </>
         )}
@@ -228,6 +240,8 @@ const createAdhoc = () => {
             <ExistingBookingsWeek
               week={week2}
               handleBookingAction={handleBookingAction}
+              editing={editing}
+              setEditing={setEditing}
             />
           </>
         )}
@@ -389,7 +403,90 @@ const createAdhoc = () => {
 
 </div>
 
+<h3 className="mt-5">
+  Pending SMS Jobs{" "}
+  {smsActive === null ? (
+    <span className="text-muted">Loading…</span>
+  ) : smsActive ? (
+    <span className="text-success">Active</span>
+  ) : (
+    <span className="text-danger">Inactive</span>
+  )}
+</h3>
 
+
+
+
+
+{smsLoading && (
+  <div className="text-center my-3">
+    <div className="spinner-border text-primary" role="status" />
+  </div>
+)}
+
+<table className="table table-striped">
+  <thead>
+    <tr>
+      <th>Student</th>
+      <th>Body</th>
+      <th>Created</th>
+      <th>Scheduled For</th>
+      <th>Send</th>
+    </tr>
+  </thead>
+  <tbody>
+    {smsJobs.map(job => (
+      <tr key={job.id}>
+        <td>{job.student_name}</td>
+        <td>{job.body}</td>
+        <td>{new Date(job.created_at).toLocaleString()}</td>
+        <td>{new Date(job.scheduled_for).toLocaleString()}</td>
+        <td>
+          {Math.max(0, Math.floor(job.time_until_sent_seconds))}s
+        </td>
+      </tr>
+    ))}
+    {smsJobs.length === 0 && (
+      <tr>
+        <td colSpan={5} className="text-center text-muted">
+          No pending SMS jobs.
+        </td>
+      </tr>
+    )}
+  </tbody>
+</table>
+
+<h3 className="mt-5">SMS Messages</h3>
+
+<table className="table table-striped">
+  <thead>
+    <tr>
+      <th>Direction</th>
+      <th>Student</th>
+      <th>Body</th>
+      <th>Created</th>
+      <th>Sent At</th>
+    </tr>
+  </thead>
+  <tbody>
+    {smsMessages.map(msg => (
+      <tr key={msg.id}>
+        <td>{msg.direction}</td>
+        <td>{msg.student_name}</td>
+        <td>{msg.body}</td>
+        <td>{new Date(msg.created_at).toLocaleString()}</td>
+        <td>{msg.sent_at ? new Date(msg.sent_at).toLocaleString() : "-"}</td>
+      </tr>
+    ))}
+    {smsMessages.length === 0 && (
+      <tr>
+        <td colSpan={5} className="text-center text-muted">
+          No messages yet.
+        </td>
+      </tr>
+    )}
+  </tbody>
+</table>
 
 
 

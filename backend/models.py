@@ -95,7 +95,7 @@ class User(AbstractUser):
     def next_booking(self):
         weekly = self.next_weekly_booking()
         adhoc = self.next_ad_hoc_booking()
-        print("Next booking", self, weekly, adhoc)
+        # print("Next booking", self, weekly, adhoc)
 
         if not weekly and not adhoc: return None
         if not adhoc: return weekly
@@ -148,6 +148,9 @@ class User(AbstractUser):
             today = date.today()
             if resume_date > today:
                 mode = "weekly_booking_but_paused"
+        elif adhoc and not weekly:
+            mode = "adhoc"
+            next_booking = adhoc
         data = {
             "mode": mode,
             "next_booking": next_booking,
@@ -587,6 +590,8 @@ class StudentProfile(models.Model):
         u = self.user
         tutor_user = u.get_tutor()
         tutor_profile = tutor_user.get_tutor_profile() if tutor_user else None
+        booking_mode = u.booking_mode()
+        # print("Booking mode:", booking_mode)
 
         return {
             # User + profile identifiers
@@ -613,10 +618,10 @@ class StudentProfile(models.Model):
             "tutor_address": tutor_profile.address if tutor_profile else None,
 
             # Booking info (already unified via booking.to_dict())
-            "booking_mode": u.booking_mode()['mode'],
-            "next_booking": u.next_booking(),
-            "next_ad_hoc_booking": u.next_ad_hoc_booking(),
-            "next_weekly_booking": u.next_weekly_booking(),
+            "booking_mode": booking_mode['mode'],
+            "next_booking": booking_mode['next_booking'],
+            "next_ad_hoc_booking": booking_mode['adhoc'],
+            "next_weekly_booking": booking_mode['weekly'],
         }
 
 class TutorProfile(models.Model):
@@ -946,14 +951,18 @@ class GlobalSetting(models.Model):
         return obj
 
 def get_bool(key, default=False):
+    # print("Get bool")
     cache_key = f"global_setting_{key}"
     val = cache.get(cache_key)
+    # print("Get bool (cache):", val)
     if val is None:
         val = GlobalSetting.get(key, default)
+        # print("Get bool (db):", val)
         global_settings_cache_min = get_int("global_settings_cache_min", 10)
         cache.set(cache_key, val, global_settings_cache_min * 60)
-    return val
-    # return val.lower() in ("1", "true", "yes", "on")
+    # print("Get bool (result):", val)
+    # return val
+    return val.lower() in ("1", "true", "yes", "on")
 
 def get_int(key, default=0):
     cache_key = f"global_setting_{key}"

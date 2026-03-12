@@ -4,7 +4,7 @@ from .cache import *
 from .utilities import *
 from .message import *
 
-def create_booking(tutor, data, booking_type):
+def create_booking(tutor, data, booking_type, user_role):
     student_id = data.get("student_id")
     student = User.objects.filter(id=student_id).first()
     if not student:
@@ -26,11 +26,11 @@ def create_booking(tutor, data, booking_type):
             end_time=end_time,
             confirmed=True,
         )
-        sms_enqueue(booking, "tutor_created_weekly")
+        sms_enqueue(booking, "create_weekly", user_role)
 
     else:  # adhoc
         print("Create ad hoc")
-        dt_str = data.get("datetime")
+        dt_str = data.get("start_time")
         start_dt, end_dt = get_datetimes(dt_str, tutor.default_session_minutes)
         print("Create ad hoc", start_dt, end_dt)
 
@@ -41,24 +41,24 @@ def create_booking(tutor, data, booking_type):
             end_datetime=end_dt,
             confirmed=True,
         )
-        sms_enqueue(booking, "tutor_created")
+        sms_enqueue(booking, "create_adhoc", user_role)
 
     update_booking_caches(booking, "create")
     return Response({"ok": True, "id": booking.id})
 
-def confirm_booking(booking):
+def confirm_booking(booking, user_role):
     booking.confirmed = not booking.confirmed
     booking.save()
 
     update_booking_caches(booking, "confirm")
     if booking.confirmed:
-        sms_enqueue(booking, "tutor_confirmed")
+        sms_enqueue(booking, "confirmed", user_role)
     else:
-        sms_enqueue(booking, "tutor_unconfirmed")
+        sms_enqueue(booking, "unconfirmed", user_role)
 
     return Response({"ok": True, "confirmed": booking.confirmed})
 
-def edit_booking(booking, data, booking_type):
+def edit_booking(booking, data, booking_type, user_role):
     duration = int(data.get("duration", 60))
     changed_date_or_starttime = False
 
@@ -84,29 +84,29 @@ def edit_booking(booking, data, booking_type):
     booking.save()
     update_booking_caches(booking, "edit")
     if changed_date_or_starttime:
-        sms_enqueue(booking, "tutor_updated")
+        sms_enqueue(booking, "updated", user_role)
 
     return Response({"ok": True, "edit": booking.id})
 
-def skip_booking(booking):
+def skip_booking(booking, user_role):
     booking.skip()
     update_booking_caches(booking, "skip")
-    sms_enqueue(booking, "tutor_skipped")
+    sms_enqueue(booking, "skipped", user_role)
 
     return Response({"ok": True, "skip": booking.id})
 
-def remove_skip_booking(booking):
+def remove_skip_booking(booking, user_role):
     booking.remove_skip()
     update_booking_caches(booking, "remove_skip")
-    sms_enqueue(booking, "tutor_unskipped")
+    sms_enqueue(booking, "unskipped", user_role)
 
     return Response({"ok": True, "remove_skip": booking.id})
 
-def delete_booking(booking, booking_type):
+def delete_booking(booking, booking_type, user_role):
     if booking_type in ["adhoc"]:
-        sms_enqueue(booking, "tutor_cancelled_adhoc")
+        sms_enqueue(booking, "cancelled_adhoc", user_role)
     else:
-        sms_enqueue(booking, "tutor_cancelled_weekly")
+        sms_enqueue(booking, "cancelled_weekly", user_role)
     update_booking_caches(booking, "delete")
     booking.delete()
 

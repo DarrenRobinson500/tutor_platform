@@ -56,7 +56,7 @@ def str_to_date(date_str):
 
 
 def format_sms_datetime(iso_str):
-    print("Format sms datetime (input):", iso_str)
+    # print("Format sms datetime (input):", iso_str)
     dt = datetime.fromisoformat(iso_str)
     weekday = dt.strftime("%a")
     day = dt.day
