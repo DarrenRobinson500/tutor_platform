@@ -1,0 +1,122 @@
+class User(AbstractUser):
+    ROLE_CHOICES = [
+        ("student", "Student"),
+        ("tutor", "Tutor"),
+        ("parent", "Parent"),
+        ("admin", "Admin"),
+    ]
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    default_session_minutes = models.IntegerField(default=60)
+    buffer_minutes = models.IntegerField(default=15)
+    objects = UserManager()
+    active = models.BooleanField(default=True)
+
+    def get_student_profile(self):
+        if self.role == "student":
+            profile = StudentProfile.objects.filter(user=self).first()
+        if not profile and self.role == "student":
+            profile = StudentProfile.objects.create(user=self)
+        return profile
+
+    def get_tutor(self):
+        if self.role == "tutor": return self
+        if self.role == "student":
+            link = TutorStudent.objects.filter(student=self).first()
+            if link: return link.tutor
+        if self.role == "parent":
+            child_link = ParentChild.objects.filter(parent=self).first()
+            if child_link: tutor_link = TutorStudent.objects.filter(student=child_link.child).first()
+            if tutor_link: return TutorProfile.objects.filter(tutor=tutor_link.tutor).first()
+        return None
+
+    def get_tutor_profile(user):
+        # Tutor: ensure a TutorProfile exists
+        if user.role == "tutor":
+            profile, _ = TutorProfile.objects.get_or_create(tutor=user)
+            return profile
+
+        # Student: follow TutorStudent → TutorProfile
+        if user.role == "student":
+            link = TutorStudent.objects.filter(student=user).first()
+            if not link:
+                return None
+            profile, _ = TutorProfile.objects.get_or_create(tutor=link.tutor)
+            return profile
+
+        # Parent: follow ParentChild → TutorStudent → TutorProfile
+        if user.role == "parent":
+            child_link = ParentChild.objects.filter(parent=user).first()
+            if not child_link:
+                return None
+            tutor_link = TutorStudent.objects.filter(student=child_link.child).first()
+            if not tutor_link:
+                return None
+            profile, _ = TutorProfile.objects.get_or_create(tutor=tutor_link.tutor)
+            return profile
+
+        return None
+
+    def next_booking(self):
+        weekly = self.next_weekly_booking()
+        adhoc = self.next_ad_hoc_booking()
+        print("Next booking", self, weekly, adhoc)
+
+        if not weekly and not adhoc: return None
+        if not adhoc: return weekly
+        if not weekly: return adhoc
+
+        return weekly if weekly["start_iso"] <= adhoc["start_iso"] else adhoc
+
+    def next_ad_hoc_booking(self):
+        # print("Next adhoc start")
+        if self.role != "student": return None
+        next_booking = (
+            BookingAdhoc.objects
+            .filter(student=self, start_datetime__gte=timezone.now())
+            .order_by("start_datetime")
+            .first()
+        )
+        # print("Next adhoc:", next_booking)
+
+        if not next_booking: return None
+
+        result = next_booking.to_dict()
+        return result
+
+    def next_weekly_booking(self):
+        weekly_bookings = BookingWeekly.objects.filter(student=self)
+        if not weekly_bookings.exists(): return None
+        next_booking = sorted(weekly_bookings, key=lambda wb: wb.next_occurrence())[0]
+
+        result = next_booking.to_dict()
+        return result
+
+    def booking_mode(self):
+        weekly = self.next_weekly_booking()
+        adhoc = self.next_ad_hoc_booking()
+        mode = "weekly_booking"
+        next_booking = weekly
+
+        print("Booking mode:", weekly, weekly.get("start_iso"))
+
+        if not weekly and not adhoc:
+            mode = "no_booking"
+        elif weekly and adhoc:
+            weekly_start = weekly["start_iso"]
+            adhoc_start = adhoc["start_iso"]
+            if adhoc_start < weekly_start:
+                mode = "weekly_booking_but_adhoc_this_week"
+                next_booking = adhoc
+        elif weekly and weekly.get("start_date"):
+            resume_date = weekly["start_date"]
+            today = date.today()
+            if resume_date > today:
+                mode = "weekly_booking_but_paused"
+        data = {
+            "mode": mode,
+            "next_booking": next_booking,
+            "weekly": weekly,
+            "adhoc": adhoc,
+        }
+        # print("Booking mode:", data)
+        return data

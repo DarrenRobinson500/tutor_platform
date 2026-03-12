@@ -1,4 +1,5 @@
 from collections import defaultdict
+from django.core.cache import cache
 
 from django.db import models
 from django.contrib.auth.models import AbstractUser
@@ -84,6 +85,13 @@ class User(AbstractUser):
 
         return None
 
+    def to_dict(self):
+        if self.role == "student":
+            return self.get_student_profile().to_dict()
+        if self.role == "tutor":
+            return self.get_tutor_profile().to_dict()
+
+
     def next_booking(self):
         weekly = self.next_weekly_booking()
         adhoc = self.next_ad_hoc_booking()
@@ -125,7 +133,7 @@ class User(AbstractUser):
         mode = "weekly_booking"
         next_booking = weekly
 
-        print("Booking mode:", weekly, weekly.get("start_iso"))
+        # print("Booking mode:", weekly, weekly.get("start_iso"))
 
         if not weekly and not adhoc:
             mode = "no_booking"
@@ -937,16 +945,28 @@ class GlobalSetting(models.Model):
         )
         return obj
 
-from django.core.cache import cache
-
 def get_bool(key, default=False):
     cache_key = f"global_setting_{key}"
     val = cache.get(cache_key)
     if val is None:
         val = GlobalSetting.get(key, default)
-        cache.set(cache_key, val, 600)  # cache for 10 minutes
-    return val.lower() in ("1", "true", "yes", "on")
+        global_settings_cache_min = get_int("global_settings_cache_min", 10)
+        cache.set(cache_key, val, global_settings_cache_min * 60)
+    return val
+    # return val.lower() in ("1", "true", "yes", "on")
 
+def get_int(key, default=0):
+    cache_key = f"global_setting_{key}"
+    val = cache.get(cache_key)
+
+    if val is None:
+        val = GlobalSetting.get(key, default)
+        cache.set(cache_key, val, 2 * 60)
+
+    try:
+        return int(val)
+    except (TypeError, ValueError):
+        return default
 
 # Messaging
 

@@ -40,6 +40,7 @@ export function TutorBookingPage() {
   const [smsJobs, setSmsJobs] = useState<any[]>([]);
   const [smsMessages, setSmsMessages] = useState<any[]>([]);
   const [smsLoading, setSmsLoading] = useState(false);
+  const [smsActive, setSmsActive] = useState<any[]>([]);
 
 
   const [editing, setEditing] = useState<{
@@ -78,6 +79,7 @@ export function TutorBookingPage() {
       // SMS data
       setSmsJobs(smsData.jobs || []);
       setSmsMessages(smsData.messages || []);
+      setSmsActive(smsData.active || []);
 
     } finally {
       setLoading(false);
@@ -225,6 +227,8 @@ const createAdhoc = () => {
             <ExistingBookingsWeek
               week={week1}
               handleBookingAction={handleBookingAction}
+              editing={editing}
+              setEditing={setEditing}
             />
           </>
         )}
@@ -234,6 +238,8 @@ const createAdhoc = () => {
             <ExistingBookingsWeek
               week={week2}
               handleBookingAction={handleBookingAction}
+              editing={editing}
+              setEditing={setEditing}
             />
           </>
         )}
@@ -395,7 +401,14 @@ const createAdhoc = () => {
 
 </div>
 
-<h3 className="mt-5">Pending SMS Jobs</h3>
+<h3 className="mt-5">
+  Pending SMS Jobs{" "}
+  <span className={smsActive ? "text-green-600" : "text-red-600"}>
+    {smsActive ? "Active" : "Inactive"}
+  </span>
+</h3>
+
+
 
 {smsLoading && (
   <div className="text-center my-3">

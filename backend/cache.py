@@ -35,7 +35,7 @@ def get_cached_students_for_tutor(tutor):
         data = []
         for link in links:
             student = link.student
-            summary = build_student_summary(student)
+            summary = student.to_dict()
             data.append(summary)
 
         STUDENTS_CACHE[tutor_id] = data

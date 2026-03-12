@@ -624,8 +624,8 @@ class TutorViewSet(viewsets.ModelViewSet):
         print("Getting students:")
         tutor_user = self.get_object()
         data = get_cached_students_for_tutor(tutor_user)
-        # print("Received students:", now)
-        # print(data)
+        print("Received students:", now)
+        print(data)
         return Response(data)
 
     @action(detail=True, methods=["get"], url_path="booking")
@@ -741,10 +741,11 @@ class TutorViewSet(viewsets.ModelViewSet):
 
         jobs = (SMSSendJob.objects.filter(conversation__tutor_id=tutor.id, cancelled=False, retry_count__lt=3).order_by("-created_at"))
         messages = (SMSMessage.objects.filter(conversation__tutor_id=tutor.id, created_at__gte=start_of_day,).select_related("conversation", "conversation__student").order_by("-created_at"))
-        print("SMS Activity (jobs):", tutor, jobs)
+
         return Response({
             "jobs": [job.to_dict() for job in jobs],
             "messages": [msg.to_dict() for msg in messages],
+            "active": get_bool("sms_send", default=False)
         })
 
     @action(detail=True, methods=["get"])
@@ -838,7 +839,7 @@ class TutorViewSet(viewsets.ModelViewSet):
     def booking_action(self, request, pk=None):
         tutor = self.get_object()
         data = request.data
-        print("Booking action (data):", data)
+        # print("Booking action (data):", data)
 
         command = data.get("command") or data.get("action")
         booking_type = data.get("booking_type") or data.get("type")
@@ -850,7 +851,7 @@ class TutorViewSet(viewsets.ModelViewSet):
 
         # CREATE
         if command == "create":
-            print("→ start create")
+            # print("→ start create")
             # Delay the weekly and create adhoc (for a one-off change to a weekly schedule)
             if data.get("pause_weekly"):
                 student_id = request.data.get("student_id")
@@ -887,6 +888,10 @@ class StudentViewSet(viewsets.ModelViewSet):
         user = super().get_object()
         profile = user.get_student_profile()
         return profile
+
+    def retrieve(self, request, *args, **kwargs):
+        student_profile = self.get_object()
+        return Response(student_profile.to_dict())
 
     @action(detail=True, methods=["post"])
     def edit(self, request, pk=None):

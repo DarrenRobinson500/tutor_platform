@@ -1,0 +1,43 @@
+class StudentViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.filter(role="student").select_related("student_profile")
+    serializer_class = StudentSerializer
+    permission_classes = [AllowAny]
+
+    def get_object(self):
+        user = super().get_object()
+        profile = user.get_student_profile()
+        return profile
+
+    @action(detail=True, methods=["post"])
+    def edit(self, request, pk=None):
+        student_profile = self.get_object()
+        student = student_profile.user
+        fields = request.data.get("fields", {})
+        print("Student edit (fields)", fields)
+        for key, value in fields.items():
+            if hasattr(student, key):
+                print("Saved (to user): ", key, value)
+                setattr(student, key, value)
+
+        student.save()
+
+        profile_fields = ["year_level", "area_of_study", "mobile", "address"]
+        changed = False
+
+        for key, value in fields.items():
+            if key in profile_fields:
+                print("Student edit:", key)
+                setattr(student_profile, key, value)
+                changed = True
+        if changed:
+            student_profile.save()
+        update_student_cache(student)
+        return Response(student_profile.to_dict(), status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["get"])
+    def home(self, request, pk=None):
+        print("Student Home (sms_send):", settings.SMS_SEND)
+        student_profile = self.get_object()
+        result = student_profile.to_dict()
+        print("Student home:", result)
+        return Response(result)

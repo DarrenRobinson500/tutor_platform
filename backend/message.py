@@ -1,6 +1,6 @@
 from .models import *
 from .clicksend import *
-SMS_PAUSE = timedelta(minutes=10)
+SMS_PAUSE = timedelta(minutes=get_int("sms_pause", default=10))
 
 def format_weekday(day_str):
     d = datetime.strptime(day_str, "%Y-%m-%d").date()
@@ -47,7 +47,7 @@ def create_sms_body(booking, message_type):
     if message_type not in SMS_TEMPLATES:
         raise ValueError(f"Unknown SMS message type: {message_type}")
 
-    print("Create sms body:", booking)
+    # print("Create sms body:", booking)
 
     weekday = booking["day_str"]
     date_and_time = format_sms_datetime(booking["start_iso"])
@@ -108,7 +108,7 @@ def process_sms_jobs():
 
         try:
             # Attempt to send
-            sms_send = get_bool("send_sms", default=False)
+            sms_send = get_bool("sms_send", default=False)
             print("SMS Send:", sms_send)
 
             if sms_send:
