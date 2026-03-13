@@ -10,6 +10,10 @@ def create_booking(tutor, data, booking_type, user_role):
     if not student:
         return Response({"ok": False, "error": "Student not found"}, status=404)
 
+    confirmed = True
+    if user_role == "student": confirmed = False
+
+
     if booking_type == "weekly":
         weekday = data.get("weekday")
         time_str = data.get("time")
@@ -24,7 +28,7 @@ def create_booking(tutor, data, booking_type, user_role):
             weekday=weekday,
             start_time=start_time,
             end_time=end_time,
-            confirmed=True,
+            confirmed=confirmed,
         )
         sms_enqueue(booking, "create_weekly", user_role)
 
@@ -39,7 +43,7 @@ def create_booking(tutor, data, booking_type, user_role):
             student=student,
             start_datetime=start_dt,
             end_datetime=end_dt,
-            confirmed=True,
+            confirmed=confirmed,
         )
         sms_enqueue(booking, "create_adhoc", user_role)
 
@@ -48,6 +52,7 @@ def create_booking(tutor, data, booking_type, user_role):
 
 def confirm_booking(booking, user_role):
     booking.confirmed = not booking.confirmed
+    if user_role == "student": booking.confirmed = False
     booking.save()
 
     update_booking_caches(booking, "confirm")
@@ -81,6 +86,7 @@ def edit_booking(booking, data, booking_type, user_role):
         booking.start_datetime = start_dt
         booking.end_datetime = end_dt
 
+    if user_role == "student": booking.confirmed = False
     booking.save()
     update_booking_caches(booking, "edit")
     if changed_date_or_starttime:

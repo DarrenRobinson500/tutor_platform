@@ -964,53 +964,18 @@ class StudentViewSet(viewsets.ModelViewSet):
         tutor_id = request.data.get("tutor_id")
         print("Create student: Tutor id:", tutor_id)
 
-        if not name or not email:
-            return Response({"error": "Name and email are required"}, status=400)
-
+        # Pre-creation checks
+        if not name or not email: return Response({"error": "Name and email are required"}, status=400)
         user = User.objects.filter(email=email).first()
-        created_new_user = False
+        if user: return Response({"error": "A user with this email already exists."}, status=400)
 
-        if user:
-            if user.role != "student":
-                return Response(
-                    {"error": "A user with this email already exists but is not a student."},
-                    status=400
-                )
-            if user.first_name != name:
-                user.first_name = name
-                user.save()
-        else:
-            user = User.objects.create(
-                username=email,
-                email=email,
-                first_name=name,
-                role="student",
-                password=make_password(password),
-            )
-            created_new_user = True
-
-
+        # Create the user, student profile, link student to tutor and update cache
+        user = User.objects.create(username=email, email=email, first_name=name, role="student", password=make_password(password),)
         StudentProfile.objects.get_or_create(user=user)
+        if tutor_id: TutorStudent.objects.get_or_create(tutor_id=tutor_id, student=user)
+        update_student_cache(user)
 
-        if tutor_id:
-            TutorStudent.objects.get_or_create(
-                tutor_id=tutor_id,
-                student=user
-            )
-
-        invalidate_students_cache_for_tutor(tutor_id)
-
-        response_data = {
-            "id": user.id,
-            "name": user.first_name,
-            "email": user.email,
-            "linked_to_tutor": tutor_id,
-        }
-
-        if created_new_user:
-            response_data["password"] = password
-
-        return Response(response_data)
+        return Response(user.to_dict())
 
 class NoteViewSet(viewsets.ModelViewSet):
     queryset = Note.objects.all().order_by("-created_at")

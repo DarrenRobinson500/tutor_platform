@@ -46,21 +46,13 @@ def update_student_cache(student):
     global STUDENTS_CACHE
 
     # Find all tutors linked to this student
-    links = TutorStudent.objects.filter(student=student).select_related("tutor")
     profile = student.get_student_profile()
-
-    # Build fresh summary for this student
+    tutor = student.get_tutor()
     updated_summary = profile.to_dict()
 
-    # For each tutor, update their cache entry
-    tutor = student.get_tutor()
-    tutor_id = "None"
-    if tutor:
-        tutor_id = student.get_tutor().id
-    if tutor_id not in STUDENTS_CACHE:
-        STUDENTS_CACHE[tutor_id] = []
+    if tutor.id not in STUDENTS_CACHE: STUDENTS_CACHE[tutor.id] = []
 
-    students = STUDENTS_CACHE[tutor_id]
+    students = STUDENTS_CACHE[tutor.id]
 
     # Try to find existing entry
     found = False
@@ -73,15 +65,6 @@ def update_student_cache(student):
     # If not found, add it
     if not found:
         students.append(updated_summary)
-
-    # Now remove the student from any tutor cache where they are no longer linked
-    tutor_ids_with_student = {link.tutor.id for link in links}
-
-    for tutor_id, students in STUDENTS_CACHE.items():
-        if tutor_id not in tutor_ids_with_student:
-            STUDENTS_CACHE[tutor_id] = [
-                s for s in students if s["user_id"] != student.id
-            ]
 
 
 def invalidate_students_cache_for_tutor(tutor_id):
