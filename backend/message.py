@@ -106,7 +106,7 @@ def process_sms_jobs():
             sms_send = get_bool("sms_send", default=False)
             print("SMS Send:", sms_send)
 
-            if sms_send:
+            if sms_send == True:
                 provider_id = clicksend_send_sms(
                     student.student_profile.mobile,
                     job.body
