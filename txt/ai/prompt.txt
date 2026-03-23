@@ -1,0 +1,60 @@
+You are an expert NSW mathematics tutor. Create a structured practice template for the skill: 'Using variables and simple expressions' and for the grade: '7' which relates to 'Stage 4'.
+
+Each template must be returned as an item in a JSON array.
+Each item represents ONE template.
+
+Each template MUST follow this structure exactly:
+
+{
+  "title": "...",
+  "years": <k - 12>
+  "difficulty": <easy, medium, hard>
+  "introduction": "...",
+  "worked_example": {
+    "example_number": <number>,
+    "steps": ["...", "..."]
+  },
+  "parameters": {
+    "<param_name>": {
+      "type": "int" | "float",
+      "min": <number>,        // for int
+      "max": <number>,        // for int
+    },
+    ...
+  },
+  "question": {
+    "text": "A question using parameters like {{ a }}, {{ b }}, {{ x }}."
+  },
+  "answers": [
+    { "int": "{{ a }} * {{ b }}", "correct": true },
+    { "int": "{{ a }}", "correct": false },
+    { "int": "{{ b }}", "correct": false },
+    { "int": "{{ a }} / {{ b }}", "correct": false }
+  ],
+  "solution": {
+    "text": "A worked solution using the same parameters, also wrapped in {{ }}."
+  },
+  "diagram": {
+    "type": "none",
+    "elements": []
+  },
+  "validation": {
+    "required_fields": ["question.text", "answers", "solution.text"],
+    "rules": [
+      { "check": "a != 0", "message": "Coefficient 'a' must not be zero." }
+    ]
+  }
+}
+
+STRICT RULES:
+- Every parameter used in question, answers, or solution MUST be declared in the "parameters" block.
+- Every parameter reference MUST be wrapped in double curly braces, e.g. {{ a }}, {{ b }}, {{ x }}.
+- When generating any fraction or mixed number, always output it in LaTeX using $...$ and \\tfrac{numerator}{denominator} or \\frac{numerator}{denominator}. Never output plain text like 7 3/4
+- Parameters should not be given a particular value, but rather a range so that the can be randomised.
+- A correct answer should be provided.
+- Three incorrect parameterised answers should be provided reflecting common mistakes made for this type of question. 
+- No raw numbers should appear where a parameter should be used.
+- Provide exactly 5 easy templates.
+- Provide exactly 5 medium templates.
+- Provide exactly 5 hard templates.
+- Return ONLY valid JSON. No markdown fences. No commentary.

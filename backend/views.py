@@ -7,9 +7,10 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.contrib.auth import authenticate, login, logout
 # from datetime import datetime, timedelta, time as dtime
+from django.db.models import Case, When, Value, IntegerField
+
 
 from .validation import *
-from .rendering import *
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
@@ -285,8 +286,39 @@ class TemplateViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def subjects(self, request):
-        subjects = Template.objects.values_list("subject", flat=True).distinct()
-        return Response(list(subjects))
+        qs = Template.objects.all()
+        skill = request.query_params.get("skill")
+        grade = request.query_params.get("grade")
+        difficulty = request.query_params.get("difficulty")
+        validated = request.query_params.get("validated")
+        if skill:
+            qs = qs.filter(skill_id=skill)
+        if grade:
+            qs = qs.filter(grade=grade)
+        if difficulty:
+            qs = qs.filter(difficulty__iexact=difficulty.strip())
+        if validated == "validated":
+            qs = qs.filter(validated=True)
+        elif validated == "unvalidated":
+            qs = qs.filter(validated=False)
+        subjects = qs.values_list("subject", flat=True).distinct()
+        return Response([s for s in subjects if s])
+
+    def perform_update(self, serializer):
+        # Capture the old skill before saving in case it changes
+        old_skill_id = serializer.instance.skill_id
+        instance = serializer.save()
+        new_skill_id = instance.skill_id
+        if old_skill_id:
+            update_matrix_cache_for_count(old_skill_id)
+        if new_skill_id and new_skill_id != old_skill_id:
+            update_matrix_cache_for_count(new_skill_id)
+
+    def perform_destroy(self, instance):
+        skill_id = instance.skill_id
+        instance.delete()
+        if skill_id:
+            update_matrix_cache_for_count(skill_id)
 
     @action(detail=True, methods=['post'])
     def toggle_validated(self, request, pk=None):
@@ -297,6 +329,20 @@ class TemplateViewSet(viewsets.ModelViewSet):
 
         return Response({"validated": template.validated})
 
+    @action(detail=True, methods=['post'])
+    def duplicate(self, request, pk=None):
+        original = self.get_object()
+        copy = Template.objects.create(
+            skill=original.skill,
+            grade=original.grade,
+            name=original.name,
+            subject=original.subject,
+            difficulty=original.difficulty,
+            content=original.content,
+        )
+        update_matrix_cache_for_count(copy.skill_id)
+        return Response({"id": copy.id})
+
     @action(detail=False, methods=["post"])
     def preview(self, request):
 
@@ -304,6 +350,30 @@ class TemplateViewSet(viewsets.ModelViewSet):
         content = request.data.get("content")
         if content:
             result = generate_preview_from_content(content)
+            # Inject knowledge items when the template ID is also known
+            template_id = request.data.get("templateId")
+            if result["ok"] and template_id and result.get("preview") is not None:
+                try:
+                    tpl = Template.objects.get(pk=template_id)
+                    from .diagram.engine import render_diagram_from_code
+                    knowledge_items = []
+                    for k in tpl.knowledge_items.all():
+                        svg = ""
+                        if k.diagram and k.diagram.strip() and k.diagram.strip().lower() != "none":
+                            try:
+                                svg = render_diagram_from_code(k.diagram)
+                            except Exception:
+                                pass
+                        knowledge_items.append({
+                            "id": k.id,
+                            "title": k.title,
+                            "text": k.text,
+                            "text_2": k.text_2,
+                            "diagram_svg": svg,
+                        })
+                    result["preview"]["knowledge_items"] = knowledge_items
+                except Exception:
+                    pass
             return Response(
                 {"ok": result["ok"], "preview": result["preview"], "error": result["error"]},
                 status=200 if result["ok"] else 400
@@ -315,13 +385,27 @@ class TemplateViewSet(viewsets.ModelViewSet):
         difficulty = request.data.get("difficulty")
         if skill_id and grade:
             qs = Template.objects.filter(skill_id=skill_id, grade=grade)
-            print("Query set:", skill_id, grade, qs)
-            if difficulty: qs = qs.filter(difficulty=difficulty)
+            # print("Query set:", skill_id, grade, qs)
+            if difficulty:
+                qs = qs.filter(difficulty=difficulty)
+            else:
+                qs = qs.order_by(
+                    Case(
+                        When(difficulty="easy", then=0),
+                        When(difficulty="medium", then=1),
+                        When(difficulty="hard", then=2),
+                        default=3,
+                        output_field=IntegerField(),
+                    ),
+                    "id"
+                )
+
             qs = qs.order_by("id")
             first = qs.first()
             if not first:
                 return Response({
                     "ok": False,
+                    "template_id": None,
                     "error": "No templates exist for this skill and grade."
                 }, status=404)
 
@@ -361,21 +445,40 @@ class TemplateViewSet(viewsets.ModelViewSet):
         except Skill.DoesNotExist:
             return Response({"error": "Skill not found"}, status=404)
 
-        print(f"Skill: {skill.description}, Grade: {grade}")
-        data = generate_template_content(skill.description, grade)
-        print("AI Output:\n", data)
+        print(f"Generating Questions. Skill: {skill.description}, Grade: {grade}")
+        try:
+            data = generate_template_content(skill, grade)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({"error": f"AI generation failed: {e}"}, status=500)
+
+        print(f"AI returned {len(data) if isinstance(data, list) else type(data).__name__} items")
+
+        if not isinstance(data, list):
+            return Response({"error": f"AI returned unexpected type {type(data).__name__}, expected list"}, status=500)
 
         created_templates = []
 
-        for item in data:
-            template = Template.objects.create(
-                skill=skill,
-                grade=grade,
-                difficulty=item["difficulty"],
-                subject=item["title"],
-                content=format_for_editor(item),
-            )
-            created_templates.append(template)
+        for i, item in enumerate(data):
+            try:
+                template = Template.objects.create(
+                    skill=skill,
+                    grade=grade,
+                    name=item["title"],
+                    difficulty=item["difficulty"],
+                    subject=item["title"],
+                    content=format_for_editor(item),
+                )
+                created_templates.append(template)
+            except Exception as e:
+                import traceback
+                print(f"Failed to create template {i}: {e}")
+                traceback.print_exc()
+                # Continue so remaining templates are still saved
+
+        if not created_templates:
+            return Response({"error": "No templates could be created from AI output"}, status=500)
 
         # Return ONLY the first created template
         first = created_templates[0]
@@ -386,6 +489,65 @@ class TemplateViewSet(viewsets.ModelViewSet):
             "subject": first.subject,
             "content": first.content,
             "skill": first.skill.id,
+        })
+
+    @action(detail=False, methods=["post"])
+    def generate_from_image(self, request):
+        image_b64 = request.data.get("image")
+        mime_type = request.data.get("mime_type", "image/png")
+        grade = request.data.get("grade", "")
+        additional_prompt = request.data.get("additional_prompt", "")
+
+        if not image_b64:
+            return Response({"error": "image required"}, status=400)
+        if not grade:
+            return Response({"error": "grade required"}, status=400)
+
+        # Build skill list filtered to the selected grade
+        matrix = get_matrix_cache()
+        grade_str = str(grade)
+        skills_list = [
+            {"id": row["id"], "code": row["code"], "description": row["description"]}
+            for row in matrix["skills"]
+            if row["children_count"] == 0
+            and row["cells"].get(grade_str, {}).get("colour") == "covered"
+        ]
+
+        if not skills_list:
+            return Response({"error": f"No skills found for Year {grade}"}, status=400)
+
+        try:
+            item = generate_template_from_image(image_b64, mime_type, skills_list, grade_str, additional_prompt)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({"error": f"AI generation failed: {e}"}, status=500)
+
+        skill_id = item.get("skill_id")
+        skill = None
+        if skill_id:
+            try:
+                skill = Skill.objects.get(id=int(skill_id))
+            except Exception:
+                pass
+
+        template = Template.objects.create(
+            skill=skill,
+            grade=grade_str,
+            name=item.get("title", ""),
+            subject=item.get("title", ""),
+            difficulty=item.get("difficulty", ""),
+            content=format_for_editor(item),
+        )
+
+        if skill:
+            update_matrix_cache_for_count(skill.id)
+
+        return Response({
+            "id": template.id,
+            "subject": template.subject,
+            "content": template.content,
+            "skill": template.skill.id if template.skill else None,
         })
 
     @action(detail=True, methods=["post"])
@@ -403,37 +565,60 @@ class TemplateViewSet(viewsets.ModelViewSet):
 
         return Response({"ok": True})
 
+    @action(detail=False, methods=["post"])
+    def update_with_ai(self, request):
+        existing_yaml = request.data.get("content", "")
+        instruction = request.data.get("instruction", "")
+
+        if not instruction.strip():
+            return Response({"error": "instruction required"}, status=400)
+
+        try:
+            from .ai import update_template
+            from .utilities import format_for_editor
+            item = update_template(existing_yaml, instruction)
+            content = format_for_editor(item)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({"error": f"AI update failed: {e}"}, status=500)
+
+        return Response({"content": content})
+
     @action(detail=False, methods=["get"])
     def filtered(self, request):
         skill = request.query_params.get("skill")
         grade = request.query_params.get("grade")
         difficulty = request.query_params.get("difficulty")
-
-        # print("FILTER RECEIVED GRADE:", repr(grade))
+        validated = request.query_params.get("validated")
 
         qs = Template.objects.all()
-        # print("pre", len(qs))
-        if skill:
-            qs = qs.filter(skill_id=skill)
-        # print("skill", len(qs))
-        if grade:
-            qs = qs.filter(grade=grade)
-        # print("grade", len(qs))
-        if difficulty:
-            qs = qs.filter(difficulty__iexact=difficulty.strip())
-        # print("difficulty", len(qs))
+        if skill: qs = qs.filter(skill_id=skill)
+        if grade: qs = qs.filter(grade=grade)
+        if difficulty: qs = qs.filter(difficulty__iexact=difficulty.strip())
+        if validated == "validated": qs = qs.filter(validated=True)
+        elif validated == "unvalidated": qs = qs.filter(validated=False)
 
         qs = qs.order_by("id")
-        # print("post", len(qs))
+
+        import yaml as _yaml
+        def _question_text(t):
+            try:
+                parsed = _yaml.safe_load(t.content or "")
+                return (parsed or {}).get("question", {}).get("text", "") or ""
+            except Exception:
+                return ""
 
         return Response([
             {
                 "id": t.id,
-                "name": t.name,
+                "name": t.name or t.subject or "",
                 "subject": t.subject,
                 "skill": t.skill_id,
                 "grade": t.grade,
                 "difficulty": t.difficulty,
+                "validated": t.validated,
+                "question_text": _question_text(t),
             }
             for t in qs
         ])
@@ -621,11 +806,11 @@ class TutorViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["get"])
     def students(self, request, pk=None):
-        print("Getting students:")
+        # print("Getting students:")
         tutor_user = self.get_object()
         data = get_cached_students_for_tutor(tutor_user)
-        print("Received students:", now)
-        print(data)
+        # print("Received students:", now)
+        # print(data)
         return Response(data)
 
     @action(detail=True, methods=["get"], url_path="booking")
@@ -1157,3 +1342,88 @@ class SMSConversationViewSet(viewsets.ViewSet):
             "student_name": convo.student.get_full_name(),
             "messages": data,
         })
+
+class PreferenceViewSet(viewsets.ModelViewSet):
+    serializer_class = UserPreferenceSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return UserPreference.objects.filter(user=self.request.user)
+
+    @action(detail=False, methods=["post"])
+    def set(self, request):
+        key = request.data.get("key")
+        value = request.data.get("value")
+
+        if not key:
+            return Response({"error": "Missing key"}, status=400)
+
+        pref, _ = UserPreference.objects.update_or_create(
+            user=request.user,
+            key=key,
+            defaults={"value": value}
+        )
+
+        return Response({"ok": True})
+
+    @action(detail=False, methods=["get"])
+    def flat(self, request):
+        prefs = self.get_queryset()
+        return Response({p.key: p.value for p in prefs})
+
+
+class KnowledgeViewSet(viewsets.ModelViewSet):
+    serializer_class = KnowledgeSerializer
+
+    def get_queryset(self):
+        qs = Knowledge.objects.prefetch_related("skills").order_by("title")
+        skill_id = self.request.query_params.get("skill_id")
+        if skill_id:
+            qs = qs.filter(skills__id=skill_id)
+        return qs
+
+    @action(detail=False, methods=["post"])
+    def preview(self, request):
+        diagram_code = request.data.get("diagram", "")
+        svg = ""
+        error = None
+        if diagram_code.strip() and diagram_code.strip().lower() != "none":
+            try:
+                from .diagram.engine import render_diagram_from_code
+                svg = render_diagram_from_code(diagram_code)
+            except Exception as e:
+                error = str(e)
+        return Response({"diagram_svg": svg, "error": error})
+
+    @action(detail=False, methods=["post"])
+    def generate_from_image(self, request):
+        image_b64 = request.data.get("image")
+        mime_type = request.data.get("mime_type", "image/png")
+        additional_prompt = request.data.get("additional_prompt", "")
+
+        if not image_b64:
+            return Response({"error": "image required"}, status=400)
+
+        try:
+            from .ai import generate_knowledge_from_image
+            item = generate_knowledge_from_image(image_b64, mime_type, additional_prompt)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({"error": f"AI generation failed: {e}"}, status=500)
+
+        return Response({
+            "title": item.get("title", ""),
+            "text": item.get("text", ""),
+            "diagram": item.get("diagram", ""),
+            "text_2": item.get("text_2", ""),
+        })
+
+
+@api_view(["GET"])
+def editor_docs(request):
+    import os
+    doc_path = os.path.join(os.path.dirname(__file__), "Editor Documentation.txt")
+    with open(doc_path, encoding="utf-8") as f:
+        content = f.read()
+    return Response({"content": content})

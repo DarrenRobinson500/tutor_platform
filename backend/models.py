@@ -2,6 +2,7 @@ from collections import defaultdict
 from django.core.cache import cache
 
 from django.db import models
+
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings as django_settings
 from datetime import datetime, timedelta, time, date
@@ -624,6 +625,19 @@ class StudentProfile(models.Model):
             "next_weekly_booking": booking_mode['weekly'],
         }
 
+class UserPreference(models.Model):
+    user = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="preferences")
+    key = models.CharField(max_length=100)
+    value = models.JSONField()
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("user", "key")
+
+    def __str__(self):
+        return f"{self.user} – {self.key} = {self.value}"
+
+
 class TutorProfile(models.Model):
     # Branding
     tutor = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="tutor")
@@ -741,6 +755,7 @@ class Skill(models.Model):
     description = models.TextField()
     grades = models.CharField(max_length=50, null=True, blank=True)
     order_index = models.IntegerField(default=0)
+    detail = models.TextField(blank=True, default="")
 
     def __str__(self):
         return f"{self.code}: {self.description[:40]}"
@@ -859,9 +874,38 @@ class Template(models.Model):
     # --- Flags for quality control ---
     has_preview = models.BooleanField(default=False)  # set true once preview successfully generated
     last_validated_at = models.DateTimeField(null=True, blank=True)
+    knowledge_items = models.ManyToManyField('Knowledge', blank=True, related_name='templates')
 
     def __str__(self):
         return f"{self.subject} (v{self.version})"
+
+class Knowledge(models.Model):
+    """
+    A reusable piece of knowledge (formula, rule, definition) attached to one
+    or more Skills.  Shown alongside the solution whenever a question from one
+    of those skills is answered, so students always see the same canonical
+    explanation for a concept.
+    """
+    title = models.CharField(max_length=200)
+    text = models.TextField(blank=True)
+    diagram = models.TextField(blank=True)
+    text_2 = models.TextField(blank=True)
+    skills = models.ManyToManyField(Skill, blank=True, related_name="knowledge_items")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.title
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "text": self.text,
+            "diagram": self.diagram,
+            "skill_ids": list(self.skills.values_list("id", flat=True)),
+        }
+
 
 class TemplateDiagram(models.Model):
     template = models.ForeignKey(Template, on_delete=models.CASCADE)
@@ -951,17 +995,13 @@ class GlobalSetting(models.Model):
         return obj
 
 def get_bool(key, default=False):
-    # print("Get bool")
     cache_key = f"global_setting_{key}"
     val = cache.get(cache_key)
-    # print("Get bool (cache):", val)
     if val is None:
         val = GlobalSetting.get(key, default)
         # print("Get bool (db):", val)
         global_settings_cache_min = get_int("global_settings_cache_min", 10)
         cache.set(cache_key, val, global_settings_cache_min * 60)
-    # print("Get bool (result):", val)
-    # return val
     return val.lower() in ("1", "true", "yes", "on")
 
 def get_int(key, default=0):

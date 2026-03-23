@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit: c:\\Users\\darre\\PycharmProjects\\tutor_frontend",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(cd:*)",
+      "Bash(python -c \":*)",
+      "Bash(find C:/Users/darre/PycharmProjects/tutor -type f \\\\\\(-name *.vue -o -name *.jsx -o -name *.tsx -o -name *.html \\\\\\))",
+      "Bash(find /c/Users/darre/PycharmProjects/tutor -type f \\\\\\(-name *.js -o -name *.jsx -o -name *.ts -o -name *.tsx \\\\\\))",
+      "Bash(find /c/Users/darre/PycharmProjects/tutor -type f \\\\\\(-name *.ts -o -name *.tsx -o -name types.ts -o -name types.d.ts \\\\\\))",
+      "Bash(python:*)",
+      "Bash(\"C:/Users/darre/PycharmProjects/tutor/backend/views.py\")"
+    ]
+  }
+}

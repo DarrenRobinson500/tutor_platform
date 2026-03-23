@@ -1,0 +1,92 @@
+from format import *
+from math import gcd
+
+class RandomParameter:
+    def __init__(self, name, type_name, options):
+        self.name = name
+        self.type_name = type_name
+        self.options = options or {}
+
+    @classmethod
+    def from_yaml(cls, name, spec):
+        # spec may be literal, dict, or structured type
+        if isinstance(spec, (int, float, str)):
+            return LiteralParameter(name, spec)
+
+        if "min" in spec and "max" in spec:
+            return RangeParameter(name, spec)
+
+        if spec.get("type") == "fraction":
+            return FractionParameter(name, spec)
+
+        raise ValueError(f"Unsupported parameter spec: {spec}")
+
+    @property
+    def value(self):
+        # Lazy generation
+        if self._value is None:
+            self._value = self.generate({})
+        return self._value
+
+    def __str__(self):
+        return str(self.value)
+
+    def generate(self, context):
+        raise NotImplementedError
+
+    def format(self, value):
+        if not hasattr(self, "format_type") or self.format_type is None:
+            return value
+
+        formatter_cls = FORMAT_REGISTRY[self.format_type]
+        formatter = formatter_cls(**self.options)
+        return formatter.format(value)
+
+
+class LiteralParameter(RandomParameter):
+    def __init__(self, name, value):
+        super().__init__(name, "literal", {})
+        self.value = value
+
+    def generate(self, context):
+        return self.value
+
+class RangeParameter(RandomParameter):
+    def generate(self, context):
+        return random.randint(self.options["min"], self.options["max"])
+
+class FractionParameter(RandomParameter):
+    def __init__(self, name, options):
+        super().__init__(name, "fraction", options)
+
+    def generate(self, context):
+        SIZE_MAP = {
+            "small": (2, 5),
+            "medium": (2, 10),
+            "large": (2, 20),
+        }
+
+        size = self.options.get("size", "medium")
+        sign = self.options.get("sign", "pos")
+        proper = self.options.get("proper", None)
+        simplified = self.options.get("simplified", True)
+
+        den_min, den_max = SIZE_MAP.get(size, (2, 10))
+        den = random.randint(den_min, den_max)
+
+        num = random.randint(1, den - 1)
+        if not proper:
+            num = random.randint(den + 1, den_max)
+
+        if simplified:
+            g = gcd(num, den)
+            num //= g
+            den //= g
+
+        if sign == "neg":
+            num = -abs(num)
+        elif sign == "pos_neg":
+            if random.choice([True, False]):
+                num = -abs(num)
+
+        return f"{num}/{den}"

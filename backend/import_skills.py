@@ -7,12 +7,16 @@ def import_skill_tree(node, parent, existing_by_description):
 
     years = node.get("years_practised", [])
     grades_str = ",".join(str(y) for y in years)
-    # print(node["description"])
+    detail_lines = node.get("detail", [])
+    detail_str = "\n".join(detail_lines) if isinstance(detail_lines, list) else str(detail_lines)
 
     skill = existing_by_description.get(description)
 
     if skill:
-        print(f"{description} - Skipping")
+        print(f"{description} - Updating")
+        skill.detail = detail_str
+        skill.grades = grades_str
+        skill.save(update_fields=["detail", "grades"])
     else:
         print(f"{description} - Importing")
         skill = Skill.objects.create(
@@ -20,10 +24,10 @@ def import_skill_tree(node, parent, existing_by_description):
             code=node["code"],
             description=description,
             grades=grades_str,
+            detail=detail_str,
         )
-        existing_by_description[description] = skill  # Add to lookup
+        existing_by_description[description] = skill
 
-    # Recurse into children
     for child in node.get("children", []):
         import_skill_tree(child, parent=skill, existing_by_description=existing_by_description)
 

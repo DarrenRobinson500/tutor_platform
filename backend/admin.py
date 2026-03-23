@@ -5,10 +5,21 @@ admin.site.register([User, ])
 admin.site.register([BookingWeekly])
 admin.site.register([TutorAvailability, TutorProfile, TutorStudent, StudentProfile])
 admin.site.register([Skill, Template, Note])
+
+@admin.register(Knowledge)
+class KnowledgeAdmin(admin.ModelAdmin):
+    list_display = ("title", "created_at", "updated_at")
+    search_fields = ("title", "text")
+    filter_horizontal = ("skills",)
 admin.site.register([SMSConversation, SMSMessage, SMSSendJob])
 
 @admin.register(GlobalSetting)
 class GlobalSettingAdmin(admin.ModelAdmin):
+    list_display = ("key", "value")
+    search_fields = ("key",)
+
+@admin.register(UserPreference)
+class UserPreference(admin.ModelAdmin):
     list_display = ("key", "value")
     search_fields = ("key",)
 

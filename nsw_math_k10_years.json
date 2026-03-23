@@ -12,17 +12,38 @@
           {
             "code": "NSW.MATH.NUMALG.WHOLE.1",
             "description": "Understanding whole number place value",
-            "years_practised": ["K", 1, 2, 3]
+            "years_practised": ["K", 1, 2, 3],
+            "detail": [
+              "Count, read and write whole numbers up to at least 1000",
+              "Identify the value of each digit in a number (ones, tens, hundreds, thousands)",
+              "Order and compare whole numbers using place value",
+              "Partition numbers into expanded form (e.g. 342 = 300 + 40 + 2)",
+              "Locate whole numbers on a number line"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.WHOLE.2",
             "description": "Applying whole number operations",
-            "years_practised": [1, 2, 3, 4]
+            "years_practised": [1, 2, 3, 4],
+            "detail": [
+              "Add and subtract whole numbers using formal written strategies",
+              "Multiply and divide whole numbers using a range of strategies",
+              "Recall multiplication facts up to 10 × 10",
+              "Apply order of operations (without brackets) to evaluate expressions",
+              "Solve word problems involving the four operations"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.WHOLE.3",
             "description": "Estimating and checking calculations",
-            "years_practised": [2, 3, 4]
+            "years_practised": [2, 3, 4],
+            "detail": [
+              "Round whole numbers to the nearest 10, 100 or 1000",
+              "Use estimation to check the reasonableness of answers",
+              "Apply rounding to estimate the result of addition and subtraction",
+              "Identify and describe the effect of rounding on an answer",
+              "Select and justify an appropriate level of accuracy for a given context"
+            ]
           }
         ]
       },
@@ -34,17 +55,38 @@
           {
             "code": "NSW.MATH.NUMALG.ADD_SUB.1",
             "description": "Developing addition strategies",
-            "years_practised": ["K", 1, 2]
+            "years_practised": ["K", 1, 2],
+            "detail": [
+              "Use counting on to add small numbers",
+              "Apply the commutative property of addition (e.g. 3 + 5 = 5 + 3)",
+              "Use doubles and near-doubles as addition strategies",
+              "Add using bridging to ten (e.g. 8 + 5 = 8 + 2 + 3)",
+              "Recall addition facts to 20"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.ADD_SUB.2",
             "description": "Developing subtraction strategies",
-            "years_practised": [1, 2, 3]
+            "years_practised": [1, 2, 3],
+            "detail": [
+              "Use counting back to subtract small numbers",
+              "Relate subtraction to addition as the inverse operation",
+              "Apply the think-addition strategy for subtraction",
+              "Use jump and split strategies for two-digit subtraction",
+              "Recall subtraction facts related to addition facts to 20"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.ADD_SUB.3",
             "description": "Solving problems using addition and subtraction",
-            "years_practised": [2, 3, 4]
+            "years_practised": [2, 3, 4],
+            "detail": [
+              "Solve word problems requiring addition or subtraction of two- and three-digit numbers",
+              "Choose an appropriate strategy (mental, written or calculator) for a given problem",
+              "Use inverse operations to check answers",
+              "Interpret the language of addition and subtraction in problem contexts",
+              "Record solutions with appropriate mathematical notation"
+            ]
           }
         ]
       },
@@ -56,17 +98,38 @@
           {
             "code": "NSW.MATH.NUMALG.MULT_DIV.1",
             "description": "Understanding multiplication concepts",
-            "years_practised": [2, 3]
+            "years_practised": [2, 3],
+            "detail": [
+              "Describe multiplication as repeated addition and as equal groups",
+              "Use arrays to model multiplication",
+              "Apply the commutative property of multiplication",
+              "Represent multiplication using the × symbol",
+              "Recall multiplication facts for 2, 5 and 10"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.MULT_DIV.2",
             "description": "Understanding division concepts",
-            "years_practised": [3, 4]
+            "years_practised": [3, 4],
+            "detail": [
+              "Describe division as sharing equally and as grouping",
+              "Relate division to multiplication as the inverse operation",
+              "Use the ÷ symbol to record division",
+              "Perform division with and without remainders",
+              "Recall division facts related to multiplication tables"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.MULT_DIV.3",
             "description": "Applying multiplication and division strategies",
-            "years_practised": [4, 5, 6]
+            "years_practised": [4, 5, 6],
+            "detail": [
+              "Multiply multi-digit numbers using the standard algorithm",
+              "Divide by single- and two-digit numbers with and without remainders",
+              "Apply the distributive property to simplify calculations",
+              "Solve multi-step word problems involving multiplication and division",
+              "Interpret remainders in the context of a problem"
+            ]
           }
         ]
       },
@@ -78,17 +141,38 @@
           {
             "code": "NSW.MATH.NUMALG.FRACTIONS.1",
             "description": "Representing fractions",
-            "years_practised": [3, 4]
+            "years_practised": [3, 4],
+            "detail": [
+              "Model and describe fractions using diagrams, number lines and area models",
+              "Identify the numerator and denominator and explain their meaning",
+              "Recognise equivalent fractions using diagrams and multiplication",
+              "Express whole numbers and mixed numbers as improper fractions",
+              "Locate fractions on a number line"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.FRACTIONS.2",
             "description": "Comparing and ordering fractions",
-            "years_practised": [4, 5]
+            "years_practised": [4, 5],
+            "detail": [
+              "Compare fractions with the same denominator",
+              "Compare fractions with different denominators using equivalent fractions",
+              "Order a set of fractions from smallest to largest",
+              "Use the symbols <, > and = to compare fractions",
+              "Explain reasoning when comparing fractions"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.FRACTIONS.3",
             "description": "Understanding decimal notation",
-            "years_practised": [4, 5, 6]
+            "years_practised": [4, 5, 6],
+            "detail": [
+              "Read and write decimals to at least three decimal places",
+              "Identify the place value of each digit in a decimal number",
+              "Convert between fractions and decimals",
+              "Order and compare decimals on a number line",
+              "Round decimals to a specified number of decimal places"
+            ]
           }
         ]
       },
@@ -100,17 +184,38 @@
           {
             "code": "NSW.MATH.NUMALG.RATIO.1",
             "description": "Understanding ratios",
-            "years_practised": [5, 6]
+            "years_practised": [5, 6],
+            "detail": [
+              "Write and interpret ratios using the colon notation",
+              "Simplify ratios by dividing by a common factor",
+              "Divide a quantity in a given ratio",
+              "Identify whether two ratios are equivalent",
+              "Apply ratios to solve practical problems"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.RATIO.2",
             "description": "Understanding rates",
-            "years_practised": [6, 7]
+            "years_practised": [6, 7],
+            "detail": [
+              "Define a rate as a comparison of two quantities with different units",
+              "Interpret and calculate common rates (speed, cost per item, pay per hour)",
+              "Convert between units in rate problems (e.g. km/h to m/s)",
+              "Solve problems involving constant rates",
+              "Distinguish between ratio and rate"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.RATIO.3",
             "description": "Understanding percentages",
-            "years_practised": [5, 6, 7]
+            "years_practised": [5, 6, 7],
+            "detail": [
+              "Express a part of a whole as a percentage",
+              "Convert between percentages, fractions and decimals",
+              "Calculate a percentage of a quantity",
+              "Find the original amount given a percentage and the part",
+              "Apply percentage increase and decrease in context"
+            ]
           }
         ]
       },
@@ -122,17 +227,38 @@
           {
             "code": "NSW.MATH.NUMALG.PATTERNS.1",
             "description": "Identifying number patterns",
-            "years_practised": [3, 4]
+            "years_practised": [3, 4],
+            "detail": [
+              "Identify and describe repeating and growing number patterns",
+              "Extend a pattern and predict future terms",
+              "Use a rule expressed in words to continue a pattern",
+              "Represent patterns in tables of values",
+              "Recognise patterns in multiplication tables"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.PATTERNS.2",
             "description": "Describing algebraic relationships",
-            "years_practised": [5, 6]
+            "years_practised": [5, 6],
+            "detail": [
+              "Describe a pattern using a rule with words or symbols",
+              "Represent a relationship between two quantities in a table",
+              "Identify and describe the relationship between values in a table",
+              "Plot points from a table of values on a coordinate plane",
+              "Use a rule to find missing values in a table"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.PATTERNS.3",
             "description": "Using variables and simple expressions",
-            "years_practised": [6, 7]
+            "years_practised": [6, 7],
+            "detail": [
+              "Use pronumerals (letters) to represent unknown quantities",
+              "Write and evaluate simple algebraic expressions",
+              "Substitute values into expressions and evaluate them",
+              "Distinguish between expressions, equations and formulas",
+              "Identify equivalent algebraic expressions"
+            ]
           }
         ]
       },
@@ -144,27 +270,62 @@
           {
             "code": "NSW.MATH.NUMALG.FINANCE.1",
             "description": "Understanding money and budgeting",
-            "years_practised": [5, 6]
+            "years_practised": [5, 6],
+            "detail": [
+              "Read and interpret prices, wages and costs in everyday contexts",
+              "Calculate change from a purchase",
+              "Create and interpret a simple budget",
+              "Distinguish between income, expenses and savings",
+              "Apply GST and discounts to prices"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.FINANCE.2",
             "description": "Calculating simple financial transactions",
-            "years_practised": [6, 7]
+            "years_practised": [6, 7],
+            "detail": [
+              "Calculate best-value purchases using unit pricing",
+              "Interpret and calculate earnings (wages, salary, commission)",
+              "Determine the effect of discounts and mark-ups",
+              "Read and interpret pay slips and invoices",
+              "Solve multi-step problems involving money"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.FINANCE.3",
             "description": "Calculating simple and compound interest",
-            "years_practised": [8, 9, 10]
+            "years_practised": [8, 9, 10],
+            "detail": [
+              "Calculate simple interest using I = Prn",
+              "Determine the total amount owing or earned with simple interest",
+              "Calculate compound interest using A = P(1 + r)^n",
+              "Compare simple and compound interest over the same period",
+              "Solve problems involving interest in financial contexts"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.FINANCE.4",
             "description": "Understanding depreciation and appreciation",
-            "years_practised": [9, 10]
+            "years_practised": [9, 10],
+            "detail": [
+              "Calculate straight-line (flat-rate) depreciation",
+              "Calculate declining-balance depreciation using a multiplier",
+              "Interpret depreciation in the context of assets",
+              "Recognise appreciation as an increase in value over time",
+              "Apply exponential models to depreciation and appreciation"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.FINANCE.5",
             "description": "Understanding tax, loans and credit",
-            "years_practised": [8, 9, 10]
+            "years_practised": [8, 9, 10],
+            "detail": [
+              "Calculate income tax using tax tables or brackets",
+              "Determine repayment amounts for simple loans",
+              "Interpret credit card statements including interest charges",
+              "Compare the cost of cash versus credit purchases",
+              "Investigate the effect of extra repayments on a loan"
+            ]
           }
         ]
       },
@@ -176,12 +337,26 @@
           {
             "code": "NSW.MATH.NUMALG.INTEGERS.1",
             "description": "Operating with integers",
-            "years_practised": [7, 8]
+            "years_practised": [7, 8],
+            "detail": [
+              "Compare and order positive and negative integers on a number line",
+              "Add and subtract integers using a number line or rules for signs",
+              "Multiply and divide integers, applying the rules for signs",
+              "Apply the order of operations to expressions involving integers",
+              "Solve problems set in contexts involving negative numbers"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.INTEGERS.2",
             "description": "Operating with rational numbers",
-            "years_practised": [7, 8]
+            "years_practised": [7, 8],
+            "detail": [
+              "Identify rational numbers as numbers that can be expressed as fractions p/q",
+              "Add and subtract fractions with unlike denominators",
+              "Multiply and divide fractions and mixed numbers",
+              "Convert between fractions, decimals and percentages",
+              "Solve problems involving operations with rational numbers"
+            ]
           }
         ]
       },
@@ -193,12 +368,26 @@
           {
             "code": "NSW.MATH.NUMALG.INDICES_SURDS.1",
             "description": "Applying the laws of indices",
-            "years_practised": [8, 9]
+            "years_practised": [8, 9],
+            "detail": [
+              "Use index notation to represent repeated multiplication",
+              "Apply the index laws for multiplication, division and power of a power",
+              "Evaluate expressions involving zero and negative indices",
+              "Express numbers in scientific notation",
+              "Perform calculations with numbers in scientific notation"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.INDICES_SURDS.2",
             "description": "Introducing surds and irrational numbers",
-            "years_practised": [9, 10]
+            "years_practised": [9, 10],
+            "detail": [
+              "Distinguish between rational and irrational numbers",
+              "Simplify surds by removing perfect-square factors",
+              "Add, subtract and multiply simple surd expressions",
+              "Rationalise the denominator of a fraction involving a surd",
+              "Evaluate expressions involving surds with and without a calculator"
+            ]
           }
         ]
       },
@@ -210,12 +399,26 @@
           {
             "code": "NSW.MATH.NUMALG.ALGEBRAIC_TECHNIQUES.1",
             "description": "Expanding and simplifying algebraic expressions",
-            "years_practised": [7, 8]
+            "years_practised": [7, 8],
+            "detail": [
+              "Collect like terms to simplify an algebraic expression",
+              "Expand brackets using the distributive law",
+              "Expand and simplify expressions involving multiple brackets",
+              "Expand binomial products using FOIL or the distributive law",
+              "Recognise and expand perfect-square and difference-of-squares expressions"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.ALGEBRAIC_TECHNIQUES.2",
             "description": "Factorising algebraic expressions",
-            "years_practised": [8, 9, 10]
+            "years_practised": [8, 9, 10],
+            "detail": [
+              "Find the highest common factor (HCF) of algebraic terms",
+              "Factorise expressions by taking out the HCF",
+              "Factorise quadratic expressions of the form x² + bx + c",
+              "Factorise difference-of-squares expressions",
+              "Factorise perfect-square trinomials"
+            ]
           }
         ]
       },
@@ -227,22 +430,50 @@
           {
             "code": "NSW.MATH.NUMALG.EQUATIONS.1",
             "description": "Solving linear equations",
-            "years_practised": [7, 8]
+            "years_practised": [7, 8],
+            "detail": [
+              "Distinguish between an expression and an equation",
+              "Solve one-step linear equations by inspection or backtracking",
+              "Solve two-step and multi-step linear equations using inverse operations",
+              "Check solutions by substituting back into the original equation",
+              "Solve word problems by forming and solving linear equations"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.EQUATIONS.2",
             "description": "Solving equations with pronumerals on both sides",
-            "years_practised": [8, 9]
+            "years_practised": [8, 9],
+            "detail": [
+              "Solve equations that have the unknown on both sides",
+              "Solve equations involving fractions and brackets",
+              "Form and solve equations from geometric or measurement contexts",
+              "Verify solutions by substitution",
+              "Solve problems involving simultaneous linear equations by substitution or elimination"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.EQUATIONS.3",
             "description": "Solving simple non-linear equations",
-            "years_practised": [9, 10]
+            "years_practised": [9, 10],
+            "detail": [
+              "Solve quadratic equations of the form ax² = c",
+              "Solve quadratic equations by factorising",
+              "Apply the quadratic formula to solve quadratic equations",
+              "Determine the number of solutions using the discriminant",
+              "Solve simple equations involving radicals"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.EQUATIONS.4",
             "description": "Solving and graphing inequalities",
-            "years_practised": [8, 9, 10]
+            "years_practised": [8, 9, 10],
+            "detail": [
+              "Use inequality symbols (<, >, ≤, ≥) to represent constraints",
+              "Solve one- and two-step linear inequalities",
+              "Reverse the inequality sign when multiplying or dividing by a negative",
+              "Represent solutions to inequalities on a number line",
+              "Interpret and write inequalities from real-world contexts"
+            ]
           }
         ]
       },
@@ -254,17 +485,38 @@
           {
             "code": "NSW.MATH.NUMALG.LINEAR_RELATIONSHIPS.1",
             "description": "Understanding gradient and intercepts",
-            "years_practised": [7, 8]
+            "years_practised": [7, 8],
+            "detail": [
+              "Define gradient as rise over run and calculate it from a graph or two points",
+              "Identify the y-intercept and x-intercept of a line",
+              "Interpret gradient in context (e.g. rate of change)",
+              "Determine whether a gradient is positive, negative, zero or undefined",
+              "Use the gradient and intercept to describe a linear relationship"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.LINEAR_RELATIONSHIPS.2",
             "description": "Graphing linear relationships",
-            "years_practised": [7, 8, 9]
+            "years_practised": [7, 8, 9],
+            "detail": [
+              "Construct a table of values for a linear rule",
+              "Plot and draw a straight-line graph from a table of values",
+              "Identify the equation of a line in the form y = mx + b",
+              "Graph horizontal and vertical lines",
+              "Determine whether a point lies on a given line"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.LINEAR_RELATIONSHIPS.3",
             "description": "Interpreting and applying linear models",
-            "years_practised": [8, 9, 10]
+            "years_practised": [8, 9, 10],
+            "detail": [
+              "Identify and interpret the gradient and intercepts in a real-world linear model",
+              "Write the equation of a line given the gradient and y-intercept",
+              "Find the equation of a line through two given points",
+              "Use a linear model to make predictions by interpolation and extrapolation",
+              "Identify the limitations of a linear model"
+            ]
           }
         ]
       },
@@ -276,17 +528,38 @@
           {
             "code": "NSW.MATH.NUMALG.NON_LINEAR.1",
             "description": "Understanding quadratic relationships",
-            "years_practised": [8, 9]
+            "years_practised": [8, 9],
+            "detail": [
+              "Recognise a quadratic relationship from its equation or table of values",
+              "Construct a table of values for y = ax² + bx + c",
+              "Identify the axis of symmetry and vertex of a parabola",
+              "Determine the x-intercepts and y-intercept of a parabola",
+              "Compare the effects of changing a, b and c on the shape of a parabola"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.NON_LINEAR.2",
             "description": "Graphing and interpreting quadratic functions",
-            "years_practised": [9, 10]
+            "years_practised": [9, 10],
+            "detail": [
+              "Sketch parabolas by identifying key features (vertex, intercepts, axis of symmetry)",
+              "Determine the equation of a parabola from its graph",
+              "Use the quadratic formula to find x-intercepts",
+              "Interpret the vertex and intercepts in a real-world context",
+              "Solve problems modelled by quadratic functions"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.NON_LINEAR.3",
             "description": "Introducing exponential relationships",
-            "years_practised": [9, 10]
+            "years_practised": [9, 10],
+            "detail": [
+              "Recognise an exponential relationship of the form y = a × bˣ",
+              "Construct a table of values and graph an exponential function",
+              "Identify the y-intercept and asymptote of an exponential graph",
+              "Describe exponential growth and decay in context",
+              "Compare exponential and linear models for the same data"
+            ]
           }
         ]
       },
@@ -298,12 +571,26 @@
           {
             "code": "NSW.MATH.NUMALG.PROPORTIONALITY.1",
             "description": "Understanding direct proportion",
-            "years_practised": [7, 8]
+            "years_practised": [7, 8],
+            "detail": [
+              "Identify a direct proportion relationship from a table or graph",
+              "Write the equation y = kx for a directly proportional relationship",
+              "Determine the constant of proportionality k",
+              "Recognise that the graph of a direct proportion passes through the origin",
+              "Solve problems involving direct proportion"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.PROPORTIONALITY.2",
             "description": "Understanding inverse proportion",
-            "years_practised": [8, 9, 10]
+            "years_practised": [8, 9, 10],
+            "detail": [
+              "Identify an inverse proportion relationship from a table or graph",
+              "Write the equation y = k/x for an inversely proportional relationship",
+              "Sketch the hyperbola y = k/x and identify its key features",
+              "Determine the constant of proportionality k from given values",
+              "Solve problems involving inverse proportion"
+            ]
           }
         ]
       },
@@ -315,17 +602,38 @@
           {
             "code": "NSW.MATH.NUMALG.MODELLING.1",
             "description": "Modelling situations with linear relationships",
-            "years_practised": [7, 8, 9]
+            "years_practised": [7, 8, 9],
+            "detail": [
+              "Identify variables and write a linear equation to model a situation",
+              "Use a linear model to make predictions and solve problems",
+              "Interpret the gradient and y-intercept in the context of a model",
+              "Determine the break-even point in a cost/revenue model",
+              "Evaluate the appropriateness of a linear model for given data"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.MODELLING.2",
             "description": "Modelling situations with non-linear relationships",
-            "years_practised": [8, 9, 10]
+            "years_practised": [8, 9, 10],
+            "detail": [
+              "Identify when a quadratic or exponential model is appropriate",
+              "Use a given non-linear model to make predictions",
+              "Interpret key features of a non-linear model in context",
+              "Compare models and select the best fit for a data set",
+              "Discuss the limitations of mathematical models"
+            ]
           },
           {
             "code": "NSW.MATH.NUMALG.MODELLING.3",
             "description": "Modelling financial situations",
-            "years_practised": [8, 9, 10]
+            "years_practised": [8, 9, 10],
+            "detail": [
+              "Use linear models to represent income and expenditure",
+              "Apply compound interest formulas to model investments and loans",
+              "Model depreciation using flat-rate and declining-balance methods",
+              "Graph and interpret financial models",
+              "Evaluate financial decisions using mathematical models"
+            ]
           }
         ]
       }
@@ -344,12 +652,26 @@
           {
             "code": "NSW.MATH.MEASGEO.LENGTH.1",
             "description": "Measuring and comparing lengths",
-            "years_practised": ["K", 1, 2]
+            "years_practised": ["K", 1, 2],
+            "detail": [
+              "Compare the lengths of objects directly (side by side)",
+              "Use informal units (e.g. hand spans, blocks) to measure length",
+              "Explain the need for a standard unit of length",
+              "Measure length using centimetres and metres",
+              "Record measurements using the correct abbreviations (cm, m)"
+            ]
           },
           {
             "code": "NSW.MATH.MEASGEO.LENGTH.2",
             "description": "Converting between units of length",
-            "years_practised": [3, 4]
+            "years_practised": [3, 4],
+            "detail": [
+              "Identify and use the relationships 1 m = 100 cm, 1 km = 1000 m",
+              "Convert between millimetres, centimetres, metres and kilometres",
+              "Choose an appropriate unit of length for a given measurement",
+              "Estimate lengths using known benchmarks",
+              "Solve problems involving length and perimeter"
+            ]
           }
         ]
       },
@@ -361,12 +683,26 @@
           {
             "code": "NSW.MATH.MEASGEO.AREA.1",
             "description": "Understanding area concepts",
-            "years_practised": [3, 4]
+            "years_practised": [3, 4],
+            "detail": [
+              "Compare the area of two shapes by direct comparison or using informal units",
+              "Measure area by counting square units",
+              "Distinguish between area and perimeter",
+              "Recognise that different shapes can have the same area",
+              "Record area using square centimetres (cm²)"
+            ]
           },
           {
             "code": "NSW.MATH.MEASGEO.AREA.2",
             "description": "Calculating area of shapes",
-            "years_practised": [4, 5, 6]
+            "years_practised": [4, 5, 6],
+            "detail": [
+              "Apply the formula A = l × w for the area of a rectangle",
+              "Calculate the area of a triangle using A = ½bh",
+              "Calculate the area of a parallelogram and trapezium",
+              "Find the area of composite shapes by addition or subtraction",
+              "Convert between square units (mm², cm², m², km²)"
+            ]
           }
         ]
       },
@@ -378,12 +714,26 @@
           {
             "code": "NSW.MATH.MEASGEO.VOLUME.1",
             "description": "Measuring volume",
-            "years_practised": [3, 4]
+            "years_practised": [3, 4],
+            "detail": [
+              "Measure volume by packing with unit cubes",
+              "Count cubes to determine the volume of a rectangular prism",
+              "Compare the volume of two objects",
+              "Record volume in cubic centimetres (cm³)",
+              "Identify that volume is the amount of space an object occupies"
+            ]
           },
           {
             "code": "NSW.MATH.MEASGEO.VOLUME.2",
             "description": "Understanding capacity",
-            "years_practised": [4, 5]
+            "years_practised": [4, 5],
+            "detail": [
+              "Identify capacity as the amount a container holds",
+              "Measure capacity in millilitres (mL) and litres (L)",
+              "Convert between millilitres and litres",
+              "Compare and order the capacity of containers",
+              "Apply the relationship 1 L = 1000 mL in problem solving"
+            ]
           }
         ]
       },
@@ -395,12 +745,26 @@
           {
             "code": "NSW.MATH.MEASGEO.MASS.1",
             "description": "Measuring mass",
-            "years_practised": ["K", 1]
+            "years_practised": ["K", 1],
+            "detail": [
+              "Compare the mass of objects by hefting (picking up and comparing)",
+              "Use informal units to measure mass",
+              "Explain the need for a standard unit of mass",
+              "Introduce grams (g) and kilograms (kg) as standard units",
+              "Estimate and measure the mass of familiar objects"
+            ]
           },
           {
             "code": "NSW.MATH.MEASGEO.MASS.2",
             "description": "Comparing mass",
-            "years_practised": [1, 2, 3]
+            "years_practised": [1, 2, 3],
+            "detail": [
+              "Compare the mass of objects using a balance scale",
+              "Order objects from lightest to heaviest",
+              "Measure mass accurately using scales",
+              "Convert between grams and kilograms",
+              "Solve problems involving mass"
+            ]
           }
         ]
       },
@@ -412,12 +776,26 @@
           {
             "code": "NSW.MATH.MEASGEO.TIME.1",
             "description": "Reading and interpreting time",
-            "years_practised": ["K", 1, 2]
+            "years_practised": ["K", 1, 2],
+            "detail": [
+              "Sequence events using the language of time (before, after, yesterday, tomorrow)",
+              "Read the time on an analogue clock to the hour and half-hour",
+              "Read the time on a digital clock",
+              "Match analogue and digital times",
+              "Identify and describe a.m. and p.m."
+            ]
           },
           {
             "code": "NSW.MATH.MEASGEO.TIME.2",
             "description": "Calculating elapsed time",
-            "years_practised": [3, 4, 5]
+            "years_practised": [3, 4, 5],
+            "detail": [
+              "Read and record time using 12-hour and 24-hour time",
+              "Calculate the duration between two times",
+              "Convert between units of time (seconds, minutes, hours, days)",
+              "Interpret timetables and schedules",
+              "Solve problems involving elapsed time"
+            ]
           }
         ]
       },
@@ -429,12 +807,26 @@
           {
             "code": "NSW.MATH.MEASGEO.SPACE2D.1",
             "description": "Identifying 2D shapes",
-            "years_practised": ["K", 1, 2]
+            "years_practised": ["K", 1, 2],
+            "detail": [
+              "Identify and name circles, triangles, squares and rectangles",
+              "Describe features of 2D shapes (sides, corners/vertices)",
+              "Sort and classify 2D shapes by their properties",
+              "Recognise 2D shapes in the environment",
+              "Compare and describe similarities and differences between shapes"
+            ]
           },
           {
             "code": "NSW.MATH.MEASGEO.SPACE2D.2",
             "description": "Understanding symmetry and transformations",
-            "years_practised": [3, 4, 5]
+            "years_practised": [3, 4, 5],
+            "detail": [
+              "Identify lines of symmetry in shapes and pictures",
+              "Create symmetrical patterns and designs",
+              "Describe and perform translations, reflections and rotations",
+              "Identify whether a shape has rotational symmetry",
+              "Tessellate shapes and explain why they tessellate"
+            ]
           }
         ]
       },
@@ -446,12 +838,26 @@
           {
             "code": "NSW.MATH.MEASGEO.SPACE3D.1",
             "description": "Identifying 3D objects",
-            "years_practised": [1, 2, 3]
+            "years_practised": [1, 2, 3],
+            "detail": [
+              "Identify and name common 3D objects (cube, sphere, cone, cylinder, prism, pyramid)",
+              "Describe features of 3D objects (faces, edges, vertices)",
+              "Sort and classify 3D objects by their properties",
+              "Recognise 3D objects in the environment",
+              "Sketch and represent 3D objects in two dimensions"
+            ]
           },
           {
             "code": "NSW.MATH.MEASGEO.SPACE3D.2",
             "description": "Understanding nets and surface area",
-            "years_practised": [4, 5, 6]
+            "years_practised": [4, 5, 6],
+            "detail": [
+              "Identify the net of a common 3D object",
+              "Sketch the net of a prism, pyramid or cylinder",
+              "Determine which nets fold to make a given solid",
+              "Calculate the surface area of rectangular prisms",
+              "Relate nets to the calculation of surface area"
+            ]
           }
         ]
       },
@@ -463,12 +869,26 @@
           {
             "code": "NSW.MATH.MEASGEO.ANGLES.1",
             "description": "Naming and identifying angles",
-            "years_practised": [3, 4]
+            "years_practised": [3, 4],
+            "detail": [
+              "Identify and name right angles, acute angles and obtuse angles",
+              "Recognise a straight angle (180°) and a revolution (360°)",
+              "Compare angles to a right angle benchmark",
+              "Identify angles in shapes and the environment",
+              "Use the terms vertex and arm when describing an angle"
+            ]
           },
           {
             "code": "NSW.MATH.MEASGEO.ANGLES.2",
             "description": "Measuring and constructing angles",
-            "years_practised": [5, 6, 7]
+            "years_practised": [5, 6, 7],
+            "detail": [
+              "Measure angles in degrees using a protractor",
+              "Construct an angle of a given size using a protractor",
+              "Apply angle relationships: angles on a straight line sum to 180°, angles at a point sum to 360°",
+              "Identify vertically opposite angles and explain that they are equal",
+              "Use angle properties to find unknown angles"
+            ]
           }
         ]
       },
@@ -480,27 +900,62 @@
           {
             "code": "NSW.MATH.MEASGEO.COORD.1",
             "description": "Plotting points on a grid",
-            "years_practised": [4, 5]
+            "years_practised": [4, 5],
+            "detail": [
+              "Use grid references to locate positions on a map",
+              "Plot points on a Cartesian plane using (x, y) coordinates",
+              "Read coordinates from a graph",
+              "Identify coordinates in all four quadrants",
+              "Plot a sequence of points to form a shape or path"
+            ]
           },
           {
             "code": "NSW.MATH.MEASGEO.COORD.2",
             "description": "Interpreting coordinate relationships",
-            "years_practised": [6, 7, 8]
+            "years_practised": [6, 7, 8],
+            "detail": [
+              "Plot points from a table of values and identify the relationship",
+              "Describe a linear relationship from its graph",
+              "Identify whether a graph represents a linear or non-linear relationship",
+              "Interpret the meaning of points on a graph in context",
+              "Use a graph to make predictions"
+            ]
           },
           {
             "code": "NSW.MATH.MEASGEO.COORD.3",
             "description": "Understanding gradient and rate of change",
-            "years_practised": [7, 8, 9]
+            "years_practised": [7, 8, 9],
+            "detail": [
+              "Calculate the gradient of a line from a graph using rise/run",
+              "Calculate the gradient from two given points using the formula",
+              "Interpret gradient as a rate of change in context",
+              "Identify positive, negative, zero and undefined gradients",
+              "Compare the steepness of lines by comparing their gradients"
+            ]
           },
           {
             "code": "NSW.MATH.MEASGEO.COORD.4",
             "description": "Using distance and midpoint formulas",
-            "years_practised": [8, 9, 10]
+            "years_practised": [8, 9, 10],
+            "detail": [
+              "Apply the distance formula to find the length of an interval",
+              "Apply the midpoint formula to find the midpoint of an interval",
+              "Verify that a point is the midpoint of a segment",
+              "Solve geometric problems using distance and midpoint formulas",
+              "Relate the distance formula to Pythagoras' theorem"
+            ]
           },
           {
             "code": "NSW.MATH.MEASGEO.COORD.5",
             "description": "Finding equations of straight lines",
-            "years_practised": [8, 9, 10]
+            "years_practised": [8, 9, 10],
+            "detail": [
+              "Write the equation of a line in gradient-intercept form y = mx + b",
+              "Find the equation of a line given its gradient and a point",
+              "Find the equation of a line through two given points",
+              "Identify parallel lines from their equations",
+              "Determine whether two lines are perpendicular using m₁ × m₂ = −1"
+            ]
           }
         ]
       },
@@ -512,17 +967,38 @@
           {
             "code": "NSW.MATH.MEASGEO.TRIG.1",
             "description": "Understanding right‑angle trigonometry",
-            "years_practised": [8, 9]
+            "years_practised": [8, 9],
+            "detail": [
+              "Identify the hypotenuse, opposite and adjacent sides in a right-angled triangle",
+              "Define the sine, cosine and tangent ratios",
+              "Use a calculator to find the value of trigonometric ratios",
+              "Find an unknown side length using a trigonometric ratio",
+              "Find an unknown angle using an inverse trigonometric ratio"
+            ]
           },
           {
             "code": "NSW.MATH.MEASGEO.TRIG.2",
             "description": "Applying trigonometric ratios",
-            "years_practised": [9, 10]
+            "years_practised": [9, 10],
+            "detail": [
+              "Solve problems involving angles of elevation and depression",
+              "Apply trigonometry to find bearings and directions",
+              "Use trigonometry in multi-step problems",
+              "Select the appropriate trigonometric ratio for a given problem",
+              "Interpret and communicate solutions to trigonometric problems"
+            ]
           },
           {
             "code": "NSW.MATH.MEASGEO.TRIG.3",
             "description": "Applying Sine Rule and Cosine Rule",
-            "years_practised": [9, 10]
+            "years_practised": [9, 10],
+            "detail": [
+              "State and apply the Sine Rule to find unknown sides and angles",
+              "Identify the ambiguous case of the Sine Rule",
+              "State and apply the Cosine Rule to find unknown sides and angles",
+              "Determine which rule to use for a given triangle",
+              "Calculate the area of a triangle using A = ½ab sin C"
+            ]
           }
         ]
       },
@@ -534,12 +1010,26 @@
           {
             "code": "NSW.MATH.MEASGEO.PYTHAG.1",
             "description": "Understanding and applying Pythagoras' theorem",
-            "years_practised": [8, 9]
+            "years_practised": [8, 9],
+            "detail": [
+              "State Pythagoras' theorem: a² + b² = c²",
+              "Identify the hypotenuse as the longest side opposite the right angle",
+              "Calculate the length of the hypotenuse given the two shorter sides",
+              "Calculate the length of a shorter side given the hypotenuse and the other side",
+              "Identify Pythagorean triads (e.g. 3-4-5, 5-12-13)"
+            ]
           },
           {
             "code": "NSW.MATH.MEASGEO.PYTHAG.2",
             "description": "Solving problems using Pythagoras' theorem",
-            "years_practised": [9, 10]
+            "years_practised": [9, 10],
+            "detail": [
+              "Apply Pythagoras' theorem to solve real-world problems",
+              "Apply Pythagoras' theorem in three-dimensional contexts",
+              "Determine whether a triangle is right-angled using the converse of the theorem",
+              "Combine Pythagoras' theorem with other geometric properties",
+              "Express answers as exact values (surds) where appropriate"
+            ]
           }
         ]
       },
@@ -551,12 +1041,26 @@
           {
             "code": "NSW.MATH.MEASGEO.SIMILARITY.1",
             "description": "Understanding congruent figures",
-            "years_practised": [7, 8]
+            "years_practised": [7, 8],
+            "detail": [
+              "Define congruence and identify congruent figures",
+              "State and apply the four tests for congruent triangles (SSS, SAS, AAS, RHS)",
+              "Match corresponding sides and angles of congruent figures",
+              "Write a congruence statement using correct notation",
+              "Use congruence to justify geometric properties"
+            ]
           },
           {
             "code": "NSW.MATH.MEASGEO.SIMILARITY.2",
             "description": "Understanding similar figures and scale factors",
-            "years_practised": [8, 9, 10]
+            "years_practised": [8, 9, 10],
+            "detail": [
+              "Define similarity and identify similar figures",
+              "Calculate the scale factor between two similar figures",
+              "Find unknown side lengths in similar figures using the scale factor",
+              "State and apply the tests for similar triangles (AA, SAS, SSS)",
+              "Apply similarity to solve problems involving maps, scale drawings and enlargements"
+            ]
           }
         ]
       },
@@ -568,12 +1072,26 @@
           {
             "code": "NSW.MATH.MEASGEO.GEO_REASONING.1",
             "description": "Reasoning with angles and parallel lines",
-            "years_practised": [7, 8]
+            "years_practised": [7, 8],
+            "detail": [
+              "Identify alternate, co-interior and corresponding angles formed by a transversal",
+              "Apply angle properties of parallel lines to find unknown angles",
+              "Use angle sum properties of triangles and quadrilaterals",
+              "Identify exterior angles of a triangle and apply the exterior angle theorem",
+              "Justify angle relationships using geometric reasoning"
+            ]
           },
           {
             "code": "NSW.MATH.MEASGEO.GEO_REASONING.2",
             "description": "Developing geometric proofs",
-            "years_practised": [8, 9, 10]
+            "years_practised": [8, 9, 10],
+            "detail": [
+              "Construct a logical sequence of steps to prove a geometric result",
+              "Prove properties of triangles and quadrilaterals",
+              "Use congruence and similarity in geometric proofs",
+              "Prove that lines are parallel or that angles are equal",
+              "Present proofs using correct mathematical language and notation"
+            ]
           }
         ]
       },
@@ -585,12 +1103,26 @@
           {
             "code": "NSW.MATH.MEASGEO.VOLUME_ADVANCED.1",
             "description": "Calculating volume of prisms and cylinders",
-            "years_practised": [8, 9]
+            "years_practised": [8, 9],
+            "detail": [
+              "Apply the formula V = Ah to find the volume of any prism",
+              "Calculate the volume of a rectangular prism using V = lwh",
+              "Calculate the volume of a cylinder using V = πr²h",
+              "Convert between units of volume (mm³, cm³, m³)",
+              "Solve problems involving volume in practical contexts"
+            ]
           },
           {
             "code": "NSW.MATH.MEASGEO.VOLUME_ADVANCED.2",
             "description": "Calculating surface area and volume of composite solids",
-            "years_practised": [9, 10]
+            "years_practised": [9, 10],
+            "detail": [
+              "Calculate the surface area of pyramids, cones and spheres",
+              "Calculate the volume of pyramids, cones and spheres",
+              "Find the surface area and volume of composite solids",
+              "Select appropriate formulas and apply them to solve problems",
+              "Convert between volume and capacity (1 cm³ = 1 mL)"
+            ]
           }
         ]
       },
@@ -602,12 +1134,26 @@
           {
             "code": "NSW.MATH.MEASGEO.TRANSFORMATIONS.1",
             "description": "Performing rotations, reflections and dilations",
-            "years_practised": [7, 8, 9]
+            "years_practised": [7, 8, 9],
+            "detail": [
+              "Perform and describe translations, reflections and rotations on the Cartesian plane",
+              "Identify the image of a point under a given transformation",
+              "Perform a dilation with a given centre and scale factor",
+              "Describe a transformation that maps one shape onto another",
+              "Identify combined transformations and their effects"
+            ]
           },
           {
             "code": "NSW.MATH.MEASGEO.TRANSFORMATIONS.2",
             "description": "Understanding loci and geometric constructions",
-            "years_practised": [8, 9, 10]
+            "years_practised": [8, 9, 10],
+            "detail": [
+              "Define a locus as the set of all points satisfying a given condition",
+              "Describe and sketch the locus of points equidistant from a fixed point (circle)",
+              "Describe and sketch the locus of points equidistant from two fixed points",
+              "Perform geometric constructions using a ruler and compass",
+              "Bisect a line segment and an angle using geometric constructions"
+            ]
           }
         ]
       }
@@ -626,17 +1172,38 @@
           {
             "code": "NSW.MATH.STATPROB.DATA.1",
             "description": "Collecting and organising data",
-            "years_practised": [2, 3]
+            "years_practised": [2, 3],
+            "detail": [
+              "Pose questions and collect data by observation, survey or experiment",
+              "Organise data in a tally chart or frequency table",
+              "Classify data as categorical or numerical",
+              "Record data systematically to avoid repetition or omission",
+              "Identify the most and least common responses in a data set"
+            ]
           },
           {
             "code": "NSW.MATH.STATPROB.DATA.2",
             "description": "Representing data using graphs",
-            "years_practised": [3, 4, 5]
+            "years_practised": [3, 4, 5],
+            "detail": [
+              "Construct picture graphs, column graphs and bar graphs",
+              "Label the title, axes and scale of a graph",
+              "Choose an appropriate scale for a graph",
+              "Represent data using line graphs and dot plots",
+              "Construct sector (pie) graphs for categorical data"
+            ]
           },
           {
             "code": "NSW.MATH.STATPROB.DATA.3",
             "description": "Interpreting data displays",
-            "years_practised": [4, 5, 6]
+            "years_practised": [4, 5, 6],
+            "detail": [
+              "Read and interpret data from a range of graphs and tables",
+              "Identify misleading features of graphs (e.g. broken axes, inconsistent scales)",
+              "Compare data sets using graphical displays",
+              "Draw conclusions from data and justify them",
+              "Identify the mode, median and mean of a data set"
+            ]
           }
         ]
       },
@@ -648,17 +1215,38 @@
           {
             "code": "NSW.MATH.STATPROB.CHANCE.1",
             "description": "Describing chance events",
-            "years_practised": [3, 4]
+            "years_practised": [3, 4],
+            "detail": [
+              "Use the language of chance (impossible, unlikely, even chance, likely, certain)",
+              "Order events on a probability scale from 0 to 1",
+              "List the possible outcomes of a chance event",
+              "Identify events that are equally likely",
+              "Distinguish between events that are certain, possible and impossible"
+            ]
           },
           {
             "code": "NSW.MATH.STATPROB.CHANCE.2",
             "description": "Conducting chance experiments",
-            "years_practised": [4, 5]
+            "years_practised": [4, 5],
+            "detail": [
+              "Conduct a simple chance experiment and record outcomes",
+              "Calculate the relative frequency of an outcome from experimental results",
+              "Compare experimental results with expected theoretical probabilities",
+              "Recognise that results vary between repeated experiments",
+              "Understand that more trials generally lead to results closer to theoretical probability"
+            ]
           },
           {
             "code": "NSW.MATH.STATPROB.CHANCE.3",
             "description": "Understanding probability models",
-            "years_practised": [6, 7, 8]
+            "years_practised": [6, 7, 8],
+            "detail": [
+              "Calculate theoretical probability using P(E) = favourable outcomes / total outcomes",
+              "Express probability as a fraction, decimal or percentage",
+              "List the sample space of a multi-step experiment",
+              "Calculate the probability of complementary events",
+              "Apply probability to predict expected frequencies"
+            ]
           }
         ]
       },
@@ -670,12 +1258,26 @@
           {
             "code": "NSW.MATH.STATPROB.STAT_ANALYSIS.1",
             "description": "Calculating and interpreting measures of centre and spread",
-            "years_practised": [8, 9]
+            "years_practised": [8, 9],
+            "detail": [
+              "Calculate the mean, median and mode of a data set",
+              "Calculate the range and interquartile range (IQR)",
+              "Identify outliers and explain their effect on summary statistics",
+              "Choose the most appropriate measure of centre for a given data set",
+              "Construct and interpret box-and-whisker plots"
+            ]
           },
           {
             "code": "NSW.MATH.STATPROB.STAT_ANALYSIS.2",
             "description": "Using interquartile range and standard deviation",
-            "years_practised": [9, 10]
+            "years_practised": [9, 10],
+            "detail": [
+              "Calculate the standard deviation of a data set using a formula or technology",
+              "Interpret standard deviation as a measure of spread",
+              "Compare two data sets using mean and standard deviation",
+              "Use z-scores to compare data from different distributions",
+              "Apply statistical measures to draw conclusions about populations"
+            ]
           }
         ]
       },
@@ -687,12 +1289,26 @@
           {
             "code": "NSW.MATH.STATPROB.BIVARIATE.1",
             "description": "Constructing and interpreting scatterplots",
-            "years_practised": [9, 10]
+            "years_practised": [9, 10],
+            "detail": [
+              "Identify the independent and dependent variables in a bivariate data set",
+              "Construct a scatterplot by plotting ordered pairs",
+              "Describe the direction, form and strength of association in a scatterplot",
+              "Identify clusters, gaps and outliers in a scatterplot",
+              "Distinguish between association and causation"
+            ]
           },
           {
             "code": "NSW.MATH.STATPROB.BIVARIATE.2",
             "description": "Describing correlation and line of best fit",
-            "years_practised": [9, 10]
+            "years_practised": [9, 10],
+            "detail": [
+              "Draw a line of best fit by eye through a scatterplot",
+              "Use the line of best fit to make predictions by interpolation and extrapolation",
+              "Interpret the gradient and intercept of the line of best fit in context",
+              "Use technology to find the equation of the least-squares regression line",
+              "Evaluate the reliability of predictions from a line of best fit"
+            ]
           }
         ]
       },
@@ -704,7 +1320,14 @@
           {
             "code": "NSW.MATH.STATPROB.SAMPLING.1",
             "description": "Understanding sampling methods and bias",
-            "years_practised": [9, 10]
+            "years_practised": [9, 10],
+            "detail": [
+              "Distinguish between a population and a sample",
+              "Describe simple random sampling, stratified sampling and systematic sampling",
+              "Identify potential sources of bias in a sample or survey",
+              "Explain why a larger sample generally gives more reliable results",
+              "Evaluate the appropriateness of a sampling method for a given context"
+            ]
           }
         ]
       },
@@ -716,12 +1339,26 @@
           {
             "code": "NSW.MATH.STATPROB.PROB_MODELS_ADV.1",
             "description": "Using two-way tables and Venn diagrams",
-            "years_practised": [8, 9]
+            "years_practised": [8, 9],
+            "detail": [
+              "Construct and interpret a two-way table for two categorical variables",
+              "Use a two-way table to calculate probabilities",
+              "Construct and interpret a Venn diagram for two events",
+              "Calculate P(A ∩ B), P(A ∪ B) and P(A') from a Venn diagram",
+              "Determine whether two events are mutually exclusive"
+            ]
           },
           {
             "code": "NSW.MATH.STATPROB.PROB_MODELS_ADV.2",
             "description": "Using tree diagrams to model probability",
-            "years_practised": [9, 10]
+            "years_practised": [9, 10],
+            "detail": [
+              "Construct a tree diagram to represent a multi-stage experiment",
+              "Label branch probabilities and list outcomes",
+              "Calculate the probability of a combined outcome by multiplying branch probabilities",
+              "Distinguish between dependent and independent events",
+              "Apply the multiplication and addition rules for probability"
+            ]
           }
         ]
       },
@@ -733,7 +1370,14 @@
           {
             "code": "NSW.MATH.STATPROB.EXPERIMENTAL_VS_THEORETICAL.1",
             "description": "Comparing experimental and theoretical probabilities",
-            "years_practised": [7, 8, 9]
+            "years_practised": [7, 8, 9],
+            "detail": [
+              "Calculate the theoretical probability of an event",
+              "Calculate the relative frequency (experimental probability) from data",
+              "Compare experimental and theoretical probabilities and explain differences",
+              "Recognise that experimental probability approaches theoretical probability as trials increase",
+              "Use experimental data to estimate probability when theoretical probability is unknown"
+            ]
           }
         ]
       }

@@ -1,0 +1,187 @@
+class TemplateViewSet(viewsets.ModelViewSet):
+    queryset = Template.objects.all()
+    serializer_class = TemplateSerializer
+    permission_classes = [AllowAny]
+
+    @action(detail=False, methods=["get"])
+    def subjects(self, request):
+        subjects = Template.objects.values_list("subject", flat=True).distinct()
+        return Response(list(subjects))
+
+    @action(detail=True, methods=['post'])
+    def toggle_validated(self, request, pk=None):
+        template = self.get_object()
+        template.validated = not template.validated
+        template.save()
+        update_matrix_cache_for_count(template.skill_id)
+
+        return Response({"validated": template.validated})
+
+    @action(detail=False, methods=["post"])
+    def preview(self, request):
+
+        # 1. Content-based preview (TemplateEditorPage)
+        content = request.data.get("content")
+        if content:
+            result = generate_preview_from_content(content)
+            return Response(
+                {"ok": result["ok"], "preview": result["preview"], "error": result["error"]},
+                status=200 if result["ok"] else 400
+            )
+
+        # 2. Skill + grade lookup (SkillsMatrix)
+        skill_id = request.data.get("skill")
+        grade = request.data.get("grade")
+        difficulty = request.data.get("difficulty")
+        if skill_id and grade:
+            qs = Template.objects.filter(skill_id=skill_id, grade=grade)
+            print("Query set:", skill_id, grade, qs)
+            if difficulty: qs = qs.filter(difficulty=difficulty)
+            qs = qs.order_by("id")
+            first = qs.first()
+            if not first:
+                return Response({
+                    "ok": False,
+                    "error": "No templates exist for this skill and grade."
+                }, status=404)
+
+            result = generate_values_and_question(first.id)
+            print(qs)
+            print(result)
+            return Response({
+                "ok": result["ok"],
+                "template_id": first.id,
+                "preview": result["preview"],
+                "error": result["error"]
+            }, status=200 if result["ok"] else 400)
+
+        # 3. Template ID preview (Editor navigation)
+        template_id = request.data.get("templateId") or request.data.get("id")
+        if template_id:
+            result = generate_values_and_question(template_id)
+            return Response(
+                {"ok": result["ok"], "preview": result["preview"], "error": result["error"]},
+                status=200 if result["ok"] else 400
+            )
+
+        # 4. Fallback
+        return Response(
+            {"ok": False, "error": "No valid preview parameters provided"},
+            status=400
+        )
+
+    @action(detail=False, methods=["post"])
+    def generate(self, request):
+        skill_id = request.data.get("skill_id")
+        grade = request.data.get("grade")
+        if not skill_id:
+            return Response({"error": "skill_id missing"}, status=400)
+        try:
+            skill = Skill.objects.get(id=skill_id)
+        except Skill.DoesNotExist:
+            return Response({"error": "Skill not found"}, status=404)
+
+        print(f"Skill: {skill.description}, Grade: {grade}")
+        data = generate_template_content(skill.description, grade)
+        print("AI Output:\n", data)
+
+        created_templates = []
+
+        for item in data:
+            template = Template.objects.create(
+                skill=skill,
+                grade=grade,
+                difficulty=item["difficulty"],
+                subject=item["title"],
+                content=format_for_editor(item),
+            )
+            created_templates.append(template)
+
+        # Return ONLY the first created template
+        first = created_templates[0]
+        update_matrix_cache_for_count(skill_id)
+
+        return Response({
+            "id": first.id,
+            "subject": first.subject,
+            "content": first.content,
+            "skill": first.skill.id,
+        })
+
+    @action(detail=True, methods=["post"])
+    def diagram(self, request, pk=None):
+        template = self.get_object()
+        svg = request.data.get("svg")
+
+        if not svg:
+            return Response({"error": "SVG missing"}, status=400)
+
+        diagram, _ = TemplateDiagram.objects.update_or_create(
+            template=template,
+            defaults={"svg_spec": svg}
+        )
+
+        return Response({"ok": True})
+
+    @action(detail=False, methods=["get"])
+    def filtered(self, request):
+        skill = request.query_params.get("skill")
+        grade = request.query_params.get("grade")
+        difficulty = request.query_params.get("difficulty")
+
+        # print("FILTER RECEIVED GRADE:", repr(grade))
+
+        qs = Template.objects.all()
+        # print("pre", len(qs))
+        if skill:
+            qs = qs.filter(skill_id=skill)
+        # print("skill", len(qs))
+        if grade:
+            qs = qs.filter(grade=grade)
+        # print("grade", len(qs))
+        if difficulty:
+            qs = qs.filter(difficulty__iexact=difficulty.strip())
+        # print("difficulty", len(qs))
+
+        qs = qs.order_by("id")
+        # print("post", len(qs))
+
+        return Response([
+            {
+                "id": t.id,
+                "name": t.name,
+                "subject": t.subject,
+                "skill": t.skill_id,
+                "grade": t.grade,
+                "difficulty": t.difficulty,
+            }
+            for t in qs
+        ])
+
+    @action(detail=False, methods=["post"])
+    def autosave(self, request):
+        content = request.data.get("content", "")
+        template_id = request.data.get("templateId") or request.data.get("id")
+        # Normalize invalid IDs
+        invalid_ids = [None, "", "undefined", "new"]
+        if template_id in invalid_ids:
+            template = Template.objects.create(
+                content=content
+            )
+            return Response({"ok": True, "id": template.id})
+
+        # If no template_id, do nothing and return success
+        if not template_id:
+            print("No success trying to create a tempate id, Template ID:", template_id)
+            return Response({"ok": True})
+
+        # If template_id exists, update the template
+        try:
+            template = Template.objects.get(pk=template_id)
+            template.content = content
+            template.save()
+            # print(f"AUTOSAVED TEMPLATE {template_id}")
+            return Response({"ok": True})
+        except Template.DoesNotExist:
+            template = Template.objects.create(content=content)
+            return Response({"ok": True})

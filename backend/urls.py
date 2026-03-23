@@ -16,11 +16,14 @@ router.register(r"notes", NoteViewSet, basename="note")
 router.register(r"auth", AuthViewSet, basename="auth")
 router.register(r'weekly_bookings', BookingWeeklyViewSet, basename='weekly_bookings')
 router.register(r'adhoc_bookings', BookingAdhocViewSet, basename='adhoc_bookings')
+router.register(r'preferences', PreferenceViewSet, basename='preferences')
+router.register(r'knowledge', KnowledgeViewSet, basename='knowledge')
 
 
 urlpatterns = [
     path("auth/jwt/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("auth/jwt/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("docs/", editor_docs, name="editor_docs"),
 ]
 
 urlpatterns += router.urls

@@ -1,0 +1,112 @@
+Compiled with problems:
+×
+ERROR in ./src/preferences/preferenceStore.ts 3:0-33
+Module not found: Error: Can't resolve 'zustand' in 'C:\Users\darre\PycharmProjects\tutor_frontend\src\preferences'
+ERROR in ./src/preferences/preferenceStore.ts 3:0-33
+Module not found: Error: Can't resolve 'zustand' in 'C:\Users\darre\PycharmProjects\tutor_frontend\src\preferences'
+ERROR in src/App.tsx:29:36
+TS2307: Cannot find module './preferences/preferenceStore' or its corresponding type declarations.
+    27 | import AuthPage from "./pages/AuthPage/AuthPage";
+    28 | import { apiFetch } from "./utils/apiFetch";
+  > 29 | import { usePreferenceStore } from "./preferences/preferenceStore";
+       |                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    30 |
+    31 | import "bootstrap/dist/css/bootstrap.min.css";
+    32 |
+ERROR in src/pages/TemplateEditorPage.tsx:31:32
+TS2304: Cannot find name 'usePreferenceStore'.
+    29 |   const [skills, setSkills] = useState<any[]>([]);
+    30 |   const [subjects, setSubjects] = useState<string[]>([]);
+  > 31 |   const savedValidatedFilter = usePreferenceStore((s) =>
+       |                                ^^^^^^^^^^^^^^^^^^
+    32 |     s.get("template.validated_filter")
+    33 |   );
+    34 |
+ERROR in src/pages/TemplateEditorPage.tsx:31:52
+TS7006: Parameter 's' implicitly has an 'any' type.
+    29 |   const [skills, setSkills] = useState<any[]>([]);
+    30 |   const [subjects, setSubjects] = useState<string[]>([]);
+  > 31 |   const savedValidatedFilter = usePreferenceStore((s) =>
+       |                                                    ^
+    32 |     s.get("template.validated_filter")
+    33 |   );
+    34 |
+ERROR in src/pages/TemplateEditorPage.tsx:326:7
+TS2304: Cannot find name 'usePreferenceStore'.
+    324 |
+    325 |     if (updated.validated_filter) {
+  > 326 |       usePreferenceStore.getState().set(
+        |       ^^^^^^^^^^^^^^^^^^
+    327 |         "template.validated_filter",
+    328 |         updated.validated_filter
+    329 |       );
+ERROR in src/preferences/preferenceStore.ts:1:24
+TS2307: Cannot find module 'zustand' or its corresponding type declarations.
+  > 1 | import { create } from "zustand";
+      |                        ^^^^^^^^^
+    2 | import { apiFetch } from "../utils/apiFetch";
+    3 |
+    4 | interface PreferenceState {
+ERROR in src/preferences/preferenceStore.ts:11:60
+TS7006: Parameter 'set' implicitly has an 'any' type.
+     9 | }
+    10 |
+  > 11 | export const usePreferenceStore = create<PreferenceState>((set, get) => ({
+       |                                                            ^^^
+    12 |   prefs: {},
+    13 |
+    14 |   load: (prefs) => set({ prefs }),
+ERROR in src/preferences/preferenceStore.ts:11:65
+TS7006: Parameter 'get' implicitly has an 'any' type.
+     9 | }
+    10 |
+  > 11 | export const usePreferenceStore = create<PreferenceState>((set, get) => ({
+       |                                                                 ^^^
+    12 |   prefs: {},
+    13 |
+    14 |   load: (prefs) => set({ prefs }),
+ERROR in src/preferences/preferenceStore.ts:14:10
+TS7006: Parameter 'prefs' implicitly has an 'any' type.
+    12 |   prefs: {},
+    13 |
+  > 14 |   load: (prefs) => set({ prefs }),
+       |          ^^^^^
+    15 |
+    16 |   get: (key) => get().prefs[key],
+    17 |
+ERROR in src/preferences/preferenceStore.ts:16:9
+TS7006: Parameter 'key' implicitly has an 'any' type.
+    14 |   load: (prefs) => set({ prefs }),
+    15 |
+  > 16 |   get: (key) => get().prefs[key],
+       |         ^^^
+    17 |
+    18 |   set: (key, value) => {
+    19 |     // Update local state immediately
+ERROR in src/preferences/preferenceStore.ts:18:9
+TS7006: Parameter 'key' implicitly has an 'any' type.
+    16 |   get: (key) => get().prefs[key],
+    17 |
+  > 18 |   set: (key, value) => {
+       |         ^^^
+    19 |     // Update local state immediately
+    20 |     set((state) => ({
+    21 |       prefs: { ...state.prefs, [key]: value }
+ERROR in src/preferences/preferenceStore.ts:18:14
+TS7006: Parameter 'value' implicitly has an 'any' type.
+    16 |   get: (key) => get().prefs[key],
+    17 |
+  > 18 |   set: (key, value) => {
+       |              ^^^^^
+    19 |     // Update local state immediately
+    20 |     set((state) => ({
+    21 |       prefs: { ...state.prefs, [key]: value }
+ERROR in src/preferences/preferenceStore.ts:20:10
+TS7006: Parameter 'state' implicitly has an 'any' type.
+    18 |   set: (key, value) => {
+    19 |     // Update local state immediately
+  > 20 |     set((state) => ({
+       |          ^^^^^
+    21 |       prefs: { ...state.prefs, [key]: value }
+    22 |     }));
+    23 |

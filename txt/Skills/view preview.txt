@@ -1,0 +1,52 @@
+    @action(detail=False, methods=["post"])
+    def preview(self, request):
+
+        # 1. Content-based preview (TemplateEditorPage)
+        content = request.data.get("content")
+        if content:
+            result = generate_preview_from_content(content)
+            return Response(
+                {"ok": result["ok"], "preview": result["preview"], "error": result["error"]},
+                status=200 if result["ok"] else 400
+            )
+
+        # 2. Skill + grade lookup (SkillsMatrix)
+        skill_id = request.data.get("skill")
+        grade = request.data.get("grade")
+        difficulty = request.data.get("difficulty")
+        if skill_id and grade:
+            qs = Template.objects.filter(skill_id=skill_id, grade=grade)
+            # print("Query set:", skill_id, grade, qs)
+            if difficulty: qs = qs.filter(difficulty=difficulty)
+            qs = qs.order_by("id")
+            first = qs.first()
+            if not first:
+                return Response({
+                    "ok": False,
+                    "error": "No templates exist for this skill and grade."
+                }, status=404)
+
+            result = generate_values_and_question(first.id)
+            print(qs)
+            print(result)
+            return Response({
+                "ok": result["ok"],
+                "template_id": first.id,
+                "preview": result["preview"],
+                "error": result["error"]
+            }, status=200 if result["ok"] else 400)
+
+        # 3. Template ID preview (Editor navigation)
+        template_id = request.data.get("templateId") or request.data.get("id")
+        if template_id:
+            result = generate_values_and_question(template_id)
+            return Response(
+                {"ok": result["ok"], "preview": result["preview"], "error": result["error"]},
+                status=200 if result["ok"] else 400
+            )
+
+        # 4. Fallback
+        return Response(
+            {"ok": False, "error": "No valid preview parameters provided"},
+            status=400
+        )

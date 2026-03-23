@@ -5,6 +5,15 @@ import yaml as _yaml
 from .diagram.engine import *
 from .maths.maths_engine import *
 
+def render_fraction_latex(value: str):
+    if isinstance(value, str) and "/" in value:
+        parts = value.split("/")
+        if len(parts) == 2:
+            num, den = parts
+            return f"\\frac{{{num}}}{{{den}}}"
+    return value
+
+
 def evaluate_expression(expr: str, params=None):
     return evaluate_int_expression(expr, params or {})
 
@@ -21,11 +30,17 @@ def substitute_params_and_expressions(text, params):
 
         # Step 2: Evaluate the substituted expression
         try:
-            value = evaluate_int_expression(substituted_expr, {})
-            # print("EVALUATED VALUE:", value)
+            # If the substituted expression is a simple fraction like "1/8", return it unchanged
+            if "/" in substituted_expr and substituted_expr.replace("/", "").isdigit():
+                print("Substitute (found /):", substituted_expr)
+                return substituted_expr
+
+            # Otherwise evaluate normally
+            value = evaluate_number_expression(substituted_expr, {})
+            print("Substitute (didn't find /)", substituted_expr, str(value))
             return str(value)
-        except Exception as e:
-            # print("EVAL ERROR:", e)
+
+        except Exception:
             return f"{{{{ {expr} }}}}"
 
     result = re.sub(pattern, repl, text)
@@ -57,37 +72,34 @@ def generate_param_values(params):
                 generated[key] = None
             continue
 
-        # Case 4: FRACTION type { type: fraction, value: "num/den" }
-        if isinstance(spec, dict) and spec.get("type") in ["fraction", "fraction_unsimplified"]:
-            raw_expr = spec.get("value")
+        # Case X: Structured FRACTION type with constraints
+        if isinstance(spec, dict) and spec.get("type") == "fraction":
+            # 1. Generate numerator and denominator
+            num = random.randint(spec.get("min_numerator", 1), spec.get("max_numerator", 9))
+            den = random.randint(spec.get("min_denominator", 2), spec.get("max_denominator", 12))
 
-            # Substitute params into the fraction expression
-            substituted = substitute_params_and_expressions(raw_expr, generated)
+            # 2. Enforce proper/improper if specified
+            if spec.get("proper") is True and num >= den:
+                num, den = den - 1, den  # simple correction; could retry instead
+            if spec.get("proper") is False and num <= den:
+                num, den = den + 1, den
 
-            # Expect something like "3/8" or "a/b"
-            if "/" in substituted:
-                num_str, den_str = substituted.split("/")
-                num = evaluate_expression(num_str)
-                den = evaluate_expression(den_str)
+            # 3. Simplify if required
+            if spec.get("simplified", True):
+                g = gcd(num, den)
+                num //= g
+                den //= g
 
-                # Simplify
-                if spec.get("type") in ["fraction"]:
-
-                    num, den = simplify_fraction(num, den)
-
-                # Store as "num/den"
-                generated[key] = f"{num}/{den}"
-
-            else:
-                generated[key] = None
-
+            # 4. Store as "num/den"
+            generated[key] = f"{num}/{den}"
+            continue
         continue
 
         # Case 5: unsupported → None
         generated[key] = None
 
     # debug_print_params(generated)
-    print("Generated params:", generated)
+    # print("Generated params:", generated)
     return generated
 
 def evaluate_rule_expression(expr, params):
@@ -97,7 +109,7 @@ def evaluate_rule_expression(expr, params):
     return bool(eval(expr, {"__builtins__": {}}, safe_locals))
 
 def render_template_preview(parsed):
-    print("Rendering template preview")
+    # print("Rendering template preview")
     """
     1. Generate parameters
     2. Substitute ALL {{ ... }} in the entire YAML
@@ -143,12 +155,11 @@ def render_template_preview(parsed):
 
 
     # 2. Substitute parameters
-    print("Substituting parameters")
+    # print("Substituting parameters")
 
     original_yaml_text = _yaml.dump(parsed)
-    substituted_yaml_text = substitute_params_and_expressions(
-        original_yaml_text, generated_params
-    )
+    substituted_yaml_text = substitute_params_and_expressions(original_yaml_text, generated_params)
+    # print("Substituted yaml text:", substituted_yaml_text)
 
     result = {
         "substituted_yaml": substituted_yaml_text,
@@ -173,6 +184,7 @@ def render_template_preview(parsed):
         collected_errors.append(solution_text)
 
     raw_answers = substituted.get("answers")
+    # print("Render template preview (raw answers):", raw_answers)
 
     if isinstance(raw_answers, dict):
         raw_answers = raw_answers.get("text", [])
@@ -184,6 +196,28 @@ def render_template_preview(parsed):
     answers = []
 
     for ans in raw_answers:
+        print("Render template preview (raw answers):", raw_answers)
+
+        # New unified format: text + format + correct
+        if "text" in ans and "format" in ans:
+            format_type = ans["format"]
+            raw_text = str(ans.get("text", ""))
+            substituted_text = substitute_params_and_expressions(raw_text, generated_params)
+            # Apply the named formatter from the format registry
+            from .render.format import FORMAT_REGISTRY
+            formatter_cls = FORMAT_REGISTRY.get(format_type)
+            if formatter_cls:
+                try:
+                    from fractions import Fraction
+                    val = Fraction(substituted_text).limit_denominator(1000) if "/" in substituted_text else float(substituted_text)
+                    text = formatter_cls().format(val)
+                except Exception:
+                    text = substituted_text
+            else:
+                text = substituted_text
+            answers.append({"text": text, "correct": ans.get("correct", False)})
+            continue
+
         if "logic" in ans:
             condition = ans["logic"]
             print("Condition:", condition)
@@ -203,45 +237,28 @@ def render_template_preview(parsed):
             continue
 
         if "int" in ans:
-            expr = ans["int"]
-            value = evaluate_int_expression(expr, generated_params)
-            answers.append({
-                "text": str(value),
-                "correct": ans.get("correct", False)
-            })
+            answers.append({"text": str(evaluate_int_expression(ans["int"], generated_params)),"correct": ans.get("correct", False)})
+            continue
+        if "dec_1" in ans:
+            answers.append({"text": str(evaluate_dec_expression(ans["dec_1"], generated_params, 1)),"correct": ans.get("correct", False)})
+            continue
+        if "dec_2" in ans:
+            print("Render template preview (ans):", ans["dec_2"])
+            answers.append({"text": str(evaluate_dec_expression(ans["dec_2"], generated_params, 2)),"correct": ans.get("correct", False)})
             continue
 
-        if "fraction" in ans or "fraction_unsimplified" in ans:
-            key = "fraction" if "fraction" in ans else "fraction_unsimplified"
-            expr = ans[key]
-
-            try:
-                value = simplify_fraction_expression(expr, generated_params)
-                answers.append({
-                    "text": value,
-                    "correct": ans.get("correct", False)
-                })
-                continue
-
-            except Exception as e:
-                answers.append({
-                    "text": f"[ERROR processing fractions: {e}]",
-                    "correct": ans.get("correct", False)
-                })
-                collected_errors.append(f"[ERROR processing fractions: {e}]")
-
-            if key == "fraction":
-                num, den = simplify_fraction(num, den)
-
+        if "fraction" in ans:
+            expr = ans["fraction"]
+            print("Render template preview:", expr)
+            value = evaluate_fraction_expression(expr, generated_params)
             answers.append({
-                "text": f"{num}/{den}",
+                "text": render_fraction_latex(str(value)),
                 "correct": ans.get("correct", False)
             })
             continue
 
         answers.append(ans)
 
-    # Deduplicate answers
     seen = set()
     deduped_answers = []
     for ans in answers:
@@ -251,7 +268,7 @@ def render_template_preview(parsed):
             deduped_answers.append(ans)
 
     # Diagram SVG + code (already substituted)
-    print("Rendering (substituted parameters for diagram):", substituted["diagram"])
+    # print("Rendering (substituted parameters for diagram):", substituted["diagram"])
 
     diagram_code = substituted.get("diagram", "")
 
@@ -259,13 +276,13 @@ def render_template_preview(parsed):
     if isinstance(diagram_code, str) and diagram_code.strip():
         svg = render_diagram_from_code(diagram_code)
     else:
-        print("Failed to svg render:", diagram_code, isinstance(diagram_code, str))
+        # print("Failed to svg render:", diagram_code, isinstance(diagram_code, str))
         diagram_code = ""
 
     substituted = build_debug_yaml(parsed, generated_params, substituted)
     substituted = substituted.replace("\\n", "\n")
 
-    try:                    result['question'] = question_text
+    try:                    result['question'] = render_fraction_latex(question_text)
     except Exception as e:  result['question'] = f"[ERROR: {e}]"
 
     try:                    result['answers'] = deduped_answers
@@ -274,7 +291,7 @@ def render_template_preview(parsed):
     try:                    result['params'] = generated_params
     except Exception as e:  result['params'] = f"[ERROR: {e}]"
 
-    try:                    result['solution'] = solution_text
+    try:                    result['solution'] = render_fraction_latex(solution_text)
     except Exception as e:  result['solution'] = f"[ERROR: {e}]"
 
     try:                    result['diagram_svg'] = svg

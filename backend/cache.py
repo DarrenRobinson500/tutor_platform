@@ -355,6 +355,7 @@ def build_matrix():
             "code": skill.code,
             "description": skill.description,
             "depth": depth,
+            "detail": skill.detail,
             "children_count": len(children_map.get(skill.id, [])),
             "validated_count": validated_counts.get(skill.id, 0),
             "unvalidated_count": unvalidated_counts.get(skill.id, 0),

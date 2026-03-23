@@ -1,20 +1,25 @@
 import json
+import re
+import random
 from datetime import datetime, timedelta, time, date
 from django.utils import timezone
 local_tz = timezone.get_default_timezone()
 
 def format_for_editor(obj: dict) -> str:
-    lines = []
-    for key, value in obj.items():
-        # Convert nested objects or lists to strings cleanly
-        if isinstance(value, (dict, list)):
-            value_str = json.dumps(value, indent=2)
-        else:
-            value_str = str(value)
+    """Convert an AI-generated template dict to canonical YAML for the render engine."""
+    import yaml
 
-        # Format with newline + tab indentation
-        lines.append(f"{key}:\n    {value_str}")
-    return "\n\n".join(lines)
+    # Build an ordered dict with the canonical key order for readability
+    KEY_ORDER = ["title", "years", "difficulty", "parameters", "question",
+                 "answers", "solution", "diagram", "validation", "introduction", "worked_example"]
+
+    ordered = {k: obj[k] for k in KEY_ORDER if k in obj}
+    # Append any unexpected keys at the end
+    for k, v in obj.items():
+        if k not in ordered:
+            ordered[k] = v
+
+    return yaml.dump(ordered, allow_unicode=True, default_flow_style=False, sort_keys=False)
 
 
 def generate_week(tutor_user, tutor_profile, week_start):
@@ -103,3 +108,65 @@ def get_datetimes(start_datetime_str, duration):
     print("Get datetimes:", start_dt, end_dt)
     return start_dt, end_dt
 
+def _eval_arithmetic_in_json(text: str) -> str:
+    """Replace bare arithmetic expressions used as JSON values (e.g. 5 / 9) with their evaluated result."""
+    def _repl(m):
+        expr = m.group(0)
+        try:
+            result = eval(expr, {"__builtins__": {}}, {})  # noqa: S307
+            return repr(float(result))
+        except Exception:
+            return expr
+    # Match numeric arithmetic expressions: numbers combined with +, -, *, / (and optional parens)
+    return re.sub(r"-?\d+(?:\s*[-+*/]\s*-?\d+)+", _repl, text)
+
+
+def extract_json(text: str):
+    if not text or not text.strip():
+        raise ValueError("AI returned empty response")
+
+    # Remove markdown fences
+    text = text.strip()
+    text = re.sub(r"^```json", "", text, flags=re.IGNORECASE).strip()
+    text = re.sub(r"^```", "", text).strip()
+    text = re.sub(r"```$", "", text).strip()
+
+    # Try direct parse
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # Retry after evaluating bare arithmetic expressions (e.g. "value": 5 / 9)
+    fixed = _eval_arithmetic_in_json(text)
+    try:
+        return json.loads(fixed)
+    except json.JSONDecodeError:
+        pass
+
+    # Try to extract a JSON array [...] block first, then fall back to {...}
+    for candidate in (fixed, text):
+        for pattern in (r"\[.*\]", r"\{.*\}"):
+            match = re.search(pattern, candidate, flags=re.DOTALL)
+            if match:
+                try:
+                    return json.loads(match.group(0))
+                except json.JSONDecodeError:
+                    pass
+
+    raise ValueError(f"Could not parse JSON from AI output:\n{text}")
+
+def maths_stage(year) -> str:
+    if year in ["K", "k", 0]: return "Early Stage 1"
+    year = int(year)
+    if year in (1, 2): return "Stage 1"
+    if year in (3, 4): return "Stage 2"
+    if year in (5, 6): return "Stage 3"
+    if year in (7, 8): return "Stage 4"
+    if year in (9, 10): return "Stage 5"
+    raise ValueError("Year must be K or 1–10")
+
+def time_diff(start_time, end_time):
+    start_dt = datetime.combine(date.today(), start_time)
+    end_dt = datetime.combine(date.today(), end_time)
+    return end_dt - start_dt

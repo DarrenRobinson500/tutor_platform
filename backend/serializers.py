@@ -2,6 +2,10 @@ from rest_framework import serializers
 from .models import *
 
 class TemplateSerializer(serializers.ModelSerializer):
+    knowledge_ids = serializers.PrimaryKeyRelatedField(
+        source="knowledge_items", many=True, queryset=Knowledge.objects.all(), required=False
+    )
+
     class Meta:
         model = Template
         fields = "__all__"
@@ -14,7 +18,7 @@ class SkillSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Skill
-        fields = ["id", "parent_id", "code", "description", "grades", "order_index", "children_count", "template_count", "validated_count", "unvalidated_count",]
+        fields = ["id", "parent_id", "code", "description", "grades", "order_index", "detail", "children_count", "template_count", "validated_count", "unvalidated_count",]
 
 # class SkillDetailSerializer(serializers.ModelSerializer):
 #     children = SkillSerializer(many=True, read_only=True)
@@ -67,3 +71,18 @@ class BookingAdhocSerializer(serializers.ModelSerializer):
         model = BookingAdhoc
         fields = ["id", "student", "tutor", "start_datetime", "end_datetime", "confirmed"]
         read_only_fields = ["id", "tutor", "end", "confirmed"]
+
+class UserPreferenceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserPreference
+        fields = ["id", "key", "value", "updated_at"]
+
+class KnowledgeSerializer(serializers.ModelSerializer):
+    skill_ids = serializers.PrimaryKeyRelatedField(
+        source="skills", many=True, queryset=Skill.objects.all()
+    )
+
+    class Meta:
+        model = Knowledge
+        fields = ["id", "title", "text", "diagram", "text_2", "skill_ids", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at"]
